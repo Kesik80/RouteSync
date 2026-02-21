@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#0e0f13" id="theme-meta"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<link rel="apple-touch-icon" href="/icons/icon-192.png"/>
+<link rel="manifest" href="/icons/manifest.json"/>
+<title>RouteSync</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- PAGE: ROUTE -->
+  <div class="page active" id="page-route">
+    <header class="app-header">
+      <div class="app-logo">
+        <div class="logo-icon">⚡</div>
+        <div class="logo-text">Route<span>Sync</span></div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="btn-theme" title="Тема">🌙</button>
+        <button class="icon-btn" id="btn-share" title="Поделиться">↗</button>
+        <button class="icon-btn" id="btn-god" title="Редактор">🔑</button>
+      </div>
+    </header>
+
+    <div class="driver-bar">
+      <div class="driver-label">Водитель</div>
+      <div class="driver-chips" id="driver-chips"></div>
+    </div>
+
+    <div class="departure-bar">
+      <div class="dep-left">
+        <div class="dep-label">Abfahrt</div>
+        <div class="dep-time" id="dep-time-display">07:00</div>
+      </div>
+      <div class="dep-right">
+        <div class="dep-badge" id="dep-status-badge">● auf Zeit</div>
+        <button class="icon-btn" id="btn-dep-edit" title="Изменить">✎</button>
+      </div>
+    </div>
+
+    <div class="live-bar" id="live-bar">
+      <div class="live-indicator">
+        <div class="live-dot"></div>
+        <div class="live-label">LIVE</div>
+      </div>
+      <div class="live-next" id="live-next-text">Berechne...</div>
+      <button class="live-stop-btn" id="btn-live-stop">■ Stop</button>
+    </div>
+
+    <div style="padding: 0 20px 12px;">
+      <div class="dep-label" style="margin-bottom:8px;">Begrüßung</div>
+      <div class="greeting-chips" id="greeting-chips"></div>
+    </div>
+
+    <div class="timeline" id="timeline"></div>
+
+    <div class="add-row">
+      <button class="add-btn-main" id="btn-add">
+        <span style="font-size:18px">＋</span>
+        <span>Teilnehmer hinzufügen</span>
+      </button>
+    </div>
+
+    <div class="result-panel" id="result-panel">
+      <div class="result-header">
+        <div class="result-title">Nachricht</div>
+        <button class="result-copy-btn" id="btn-copy-result">📋 Kopieren</button>
+      </div>
+      <pre class="result-text" id="result-text"></pre>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="btn-secondary" id="btn-maps">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Maps
+      </button>
+      <button class="btn-primary" id="btn-generate">⚡ Generieren</button>
+      <button class="btn-primary" id="btn-live-start" style="flex:0 0 48px;padding:14px 0;">▶</button>
+    </div>
+  </div>
+
+  <!-- PAGE: HISTORY -->
+  <div class="page" id="page-history">
+    <header class="app-header">
+      <div class="app-logo">
+        <div class="logo-icon">📋</div>
+        <div class="logo-text">Verlauf</div>
+      </div>
+    </header>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="section-title" style="margin-top:4px;">Letzte Fahrten</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <!-- PAGE: SETTINGS -->
+  <div class="page" id="page-settings">
+    <header class="app-header">
+      <div class="app-logo">
+        <div class="logo-icon">⚙</div>
+        <div class="logo-text">Einstellungen</div>
+      </div>
+    </header>
+    <div class="settings-list">
+      <div class="setting-row" id="setting-machine">
+        <div class="setting-info">
+          <div class="setting-name">Maschinen-Halt</div>
+          <div class="setting-desc" id="setting-machine-val">an der Maschine — 20 min</div>
+        </div>
+        <div class="setting-right">›</div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Hochgestellte Minuten</div>
+          <div class="setting-desc">07³⁰ statt 07:30</div>
+        </div>
+        <div class="toggle" id="toggle-superscript"></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">„um ... Uhr bei"</div>
+          <div class="setting-desc">Erweitertes Zeitformat</div>
+        </div>
+        <div class="toggle" id="toggle-uhrbei"></div>
+      </div>
+      <div class="setting-row" id="setting-clear" style="border-color:rgba(255,92,92,0.2)">
+        <div class="setting-info">
+          <div class="setting-name" style="color:var(--red)">Daten zurücksetzen</div>
+          <div class="setting-desc">Aktuelles Profil löschen</div>
+        </div>
+        <div class="setting-right" style="color:var(--red)">⚠</div>
+      </div>
+      <div class="setting-row" id="setting-redaktor">
+        <div class="setting-info">
+          <div class="setting-name">Stationen bearbeiten</div>
+          <div class="setting-desc">Passwort erforderlich</div>
+        </div>
+        <div class="setting-right">🔑</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav class="nav-bar">
+    <button class="nav-item active" data-page="route">
+      <span class="nav-icon">🗺</span><span>Route</span>
+    </button>
+    <button class="nav-item" data-page="history">
+      <span class="nav-icon">📋</span><span>Verlauf</span>
+    </button>
+    <button class="nav-item" data-page="settings">
+      <span class="nav-icon">⚙</span><span>Einst.</span>
+    </button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+
+<div class="modal-overlay" id="modal-add">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Hinzufügen</div>
+    <div class="type-tabs">
+      <button class="type-tab active" data-type="kollege"><span class="tab-icon">👤</span><span>Kollege</span></button>
+      <button class="type-tab" data-type="treffpunkt"><span class="tab-icon">📍</span><span>Treffpunkt</span></button>
+    </div>
+    <div id="add-kollege-panel">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <div class="form-select-wrap">
+          <select class="form-select" id="add-name-select"><option value="">— auswählen —</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mitfahrer (optional)</label>
+        <div id="add-sub-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+        <button class="add-btn-main" id="btn-add-sub" style="padding:8px;font-size:12px;">+ Mitfahrer</button>
+      </div>
+    </div>
+    <div id="add-treff-panel" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Treffpunkt</label>
+        <div class="form-select-wrap">
+          <select class="form-select" id="add-treff-select"><option value="">— auswählen —</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Personen</label>
+        <div id="add-treff-persons-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+        <button class="add-btn-main" id="btn-add-treff-person" style="padding:8px;font-size:12px;">+ Person</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" id="btn-add-cancel">Abbrechen</button>
+      <button class="modal-btn-confirm" id="btn-add-confirm">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-dep-time">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Abfahrtszeit</div>
+    <div class="form-group">
+      <label class="form-label">Uhrzeit</label>
+      <input type="time" class="form-input" id="dep-time-input" value="07:00"/>
+    </div>
+    <div class="hint-box">
+      <span class="hint-icon">💡</span>
+      <span class="hint-text">Alle Teilnehmerzeiten werden automatisch neu berechnet.</span>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" id="btn-dep-cancel">Abbrechen</button>
+      <button class="modal-btn-confirm" id="btn-dep-confirm">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="edit-modal-title">Bearbeiten</div>
+    <div class="form-group">
+      <label class="form-label">Fahrzeit (Minuten)</label>
+      <div class="time-stepper">
+        <button id="edit-time-minus">−</button>
+        <span class="time-val" id="edit-time-val">10</span>
+        <button id="edit-time-plus">+</button>
+      </div>
+    </div>
+    <div class="form-group" id="edit-sub-group">
+      <label class="form-label">Mitfahrer</label>
+      <div id="edit-sub-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+      <button class="add-btn-main" id="btn-edit-add-sub" style="padding:8px;font-size:12px;">+ Mitfahrer</button>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" id="btn-edit-delete" style="color:var(--red);border-color:var(--red-dim);">🗑 Löschen</button>
+      <button class="modal-btn-confirm" id="btn-edit-save">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-share">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Nachricht teilen</div>
+    <div class="form-group">
+      <label class="form-label">Generierter Text</label>
+      <pre class="passenger-link-box" id="share-preview" style="font-family:var(--font-body);font-size:13px;line-height:1.7;white-space:pre-wrap;"></pre>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" id="btn-share-close">Schließen</button>
+      <button class="modal-btn-confirm" id="btn-share-copy">📋 Kopieren</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-god">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔑 Redakteur</div>
+    <div class="hint-box">
+      <span class="hint-icon">🔒</span>
+      <span class="hint-text">Passwort erforderlich für die Bearbeitung von Stationen und Koordinaten.</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Passwort</label>
+      <input type="password" class="form-input" id="god-password" placeholder="••••••••"/>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" id="btn-god-cancel">Abbrechen</button>
+      <button class="modal-btn-confirm" id="btn-god-confirm">Weiter →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<style>
+.sortable-ghost { opacity:0.25; background:var(--accent-dim)!important; border-color:var(--accent)!important; }
+</style>
+
+<script>
+class RouteSync {
+  constructor() {
+    this.defaultCoordinates={};this.stations={};this.travelTimes={};
+    this.treffpunkt={};this.trefftravelTimes={};this.participantOrders={};
+    this.greetingOptions=['Moin zusammen','Guten Morgen','Hey Leute','Servus'];
+    this.machineStop={name:'an der Maschine',time:20,lat:null,lng:null};
+    this.driver='';this.participants=[];this.greeting='Moin zusammen';
+    this.departureTime='07:00';this.useSuperscript=false;this.useUhrBei=false;
+    this.sortable=null;this.liveActive=false;this.liveWatchId=null;
+    this._editIndex=null;this._addType='kollege';
+    this._addSubNames=[];this._addTreffPersons=[];this._toastTimer=null;
+
+    this.$ = id => document.getElementById(id);
+    this._bindAll();
+  }
+
+  _bindAll() {
+    // Theme
+    this.$('btn-theme').onclick = () => this._toggleTheme();
+    // Share
+    this.$('btn-share').onclick = () => this._openShare();
+    // God
+    this.$('btn-god').onclick = () => {
+      if(sessionStorage.getItem('rsGodAuth')==='1'){window.location.href='redaktor.html';return;}
+      this._openModal('modal-god');
+    };
+    // Departure
+    this.$('dep-time-display').onclick = () => this._openDepModal();
+    this.$('btn-dep-edit').onclick = () => this._openDepModal();
+    this.$('btn-dep-cancel').onclick = () => this._closeModal('modal-dep-time');
+    this.$('btn-dep-confirm').onclick = () => {
+      const v=this.$('dep-time-input').value;
+      if(v){this.departureTime=v;this._saveData();this._renderTimeline();this._updateDepDisplay();}
+      this._closeModal('modal-dep-time');
+    };
+    // Add
+    this.$('btn-add').onclick = () => this._openAddModal();
+    this.$('btn-add-cancel').onclick = () => this._closeModal('modal-add');
+    this.$('btn-add-confirm').onclick = () => this._confirmAdd();
+    this.$('btn-add-sub').onclick = () => this._addSubRow('add-sub-list', this._addSubNames);
+    this.$('btn-add-treff-person').onclick = () => this._addSubRow('add-treff-persons-list', this._addTreffPersons);
+    // Type tabs
+    document.querySelectorAll('.type-tab').forEach(tab=>{
+      tab.onclick=()=>{
+        document.querySelectorAll('.type-tab').forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+        this._addType=tab.dataset.type;
+        this.$('add-kollege-panel').style.display=this._addType==='kollege'?'':'none';
+        this.$('add-treff-panel').style.display=this._addType==='treffpunkt'?'':'none';
+      };
+    });
+    // Edit
+    this.$('btn-edit-save').onclick = () => this._saveEdit();
+    this.$('btn-edit-delete').onclick = () => this._deleteP();
+    this.$('btn-edit-add-sub').onclick = () => {
+      if(this._editIndex===null)return;
+      const p=this.participants[this._editIndex];
+      this._addSubRow('edit-sub-list', p.subParticipants, true);
+    };
+    this.$('edit-time-minus').onclick=()=>{
+      const v=parseInt(this.$('edit-time-val').textContent);
+      this.$('edit-time-val').textContent=Math.max(1,v-1);
+    };
+    this.$('edit-time-plus').onclick=()=>{
+      this.$('edit-time-val').textContent=parseInt(this.$('edit-time-val').textContent)+1;
+    };
+    // Generate / Copy / Maps / Live
+    this.$('btn-generate').onclick = () => this._generate();
+    this.$('btn-copy-result').onclick = () => this._copyResult();
+    this.$('btn-maps').onclick = () => this._openMaps();
+    this.$('btn-live-start').onclick = () => this._startLive();
+    this.$('btn-live-stop').onclick = () => this._stopLive();
+    // Share modal
+    this.$('btn-share-close').onclick = () => this._closeModal('modal-share');
+    this.$('btn-share-copy').onclick = () => {
+      navigator.clipboard?.writeText(this.$('share-preview').textContent);
+      this._toast('📋 Kopiert!');this._closeModal('modal-share');
+    };
+    // God modal
+    this.$('btn-god-cancel').onclick = () => this._closeModal('modal-god');
+    this.$('btn-god-confirm').onclick = () => this._checkGod();
+    this.$('god-password').onkeydown = e => { if(e.key==='Enter') this._checkGod(); };
+    // Settings
+    this.$('setting-clear').onclick = () => {
+      if(confirm('Profil zurücksetzen?')) this._clearProfile();
+    };
+    this.$('setting-redaktor').onclick = () => this._openModal('modal-god');
+    this.$('toggle-superscript').onclick = e => {
+      this.useSuperscript=!this.useSuperscript;
+      e.currentTarget.classList.toggle('on',this.useSuperscript);
+      this._saveData();this._renderTimeline();
+    };
+    this.$('toggle-uhrbei').onclick = e => {
+      this.useUhrBei=!this.useUhrBei;
+      e.currentTarget.classList.toggle('on',this.useUhrBei);
+      this._saveData();this._renderTimeline();
+    };
+    // Nav
+    document.querySelectorAll('.nav-item').forEach(btn=>{
+      btn.onclick=()=>{
+        const pg=btn.dataset.page;
+        document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        this.$(`page-${pg}`).classList.add('active');
+        if(pg==='history') this._renderHistory();
+      };
+    });
+    // Backdrop close
+    ['modal-add','modal-dep-time','modal-edit','modal-share','modal-god'].forEach(id=>{
+      this.$(id).onclick = e => { if(e.target.id===id) this._closeModal(id); };
+    });
+    // Back fix
+    window.addEventListener('pageshow',()=>{
+      if(sessionStorage.getItem('rsGodAuth')!=='1') this._closeModal('modal-god');
+    });
+  }
+
+  _openModal(id) {
+    const el=this.$(id);el.style.display='flex';
+    requestAnimationFrame(()=>el.classList.add('open'));
+    setTimeout(()=>{ const inp=el.querySelector('input');if(inp)inp.focus(); },200);
+  }
+  _closeModal(id) {
+    const el=this.$(id);el.classList.remove('open');
+    setTimeout(()=>{ if(!el.classList.contains('open')) el.style.display=''; },300);
+  }
+
+  _toggleTheme() {
+    const html=document.documentElement;
+    const isDark=html.dataset.theme==='dark';
+    html.dataset.theme=isDark?'light':'dark';
+    this.$('btn-theme').textContent=isDark?'🌞':'🌙';
+    this.$('theme-meta').content=isDark?'#f2f3f7':'#0e0f13';
+    localStorage.setItem('rsTheme',isDark?'light':'dark');
+  }
+
+  _applyTheme() {
+    const t=localStorage.getItem('rsTheme')||'dark';
+    document.documentElement.dataset.theme=t;
+    this.$('btn-theme').textContent=t==='dark'?'🌙':'🌞';
+    this.$('theme-meta').content=t==='dark'?'#0e0f13':'#f2f3f7';
+  }
+
+  _key(k) { return this.driver?`rs_${this.driver}_${k}`:`rs__${k}`; }
+
+  _saveData() {
+    if(!this.driver)return;
+    localStorage.setItem(this._key('participants'),JSON.stringify(this.participants));
+    localStorage.setItem(this._key('greeting'),this.greeting);
+    localStorage.setItem(this._key('departure'),this.departureTime);
+    localStorage.setItem(this._key('superscript'),this.useSuperscript);
+    localStorage.setItem(this._key('uhrbei'),this.useUhrBei);
+    localStorage.setItem('rsLastDriver',this.driver);
+    this._saveHistory();
+  }
+
+  _saveHistory() {
+    const key=`rsHistory_${this.driver}`;
+    let h=[];try{h=JSON.parse(localStorage.getItem(key)||'[]');}catch{}
+    const today=new Date().toLocaleDateString('de-DE');
+    const idx=h.findIndex(x=>x.date===today);
+    const entry={date:today,driver:this.driver,departure:this.departureTime,count:this.participants.length,greeting:this.greeting,ts:Date.now()};
+    if(idx>=0)h[idx]=entry;else h.unshift(entry);
+    if(h.length>30)h=h.slice(0,30);
+    localStorage.setItem(key,JSON.stringify(h));
+  }
+
+  _loadData() {
+    const last=localStorage.getItem('rsLastDriver')||'';
+    if(last)this.driver=last;
+    if(!this.driver)return;
+    try{
+      const p=localStorage.getItem(this._key('participants'));
+      if(p)this.participants=JSON.parse(p).map(x=>({...x,routeCalculated:x.routeCalculated||false,timeManuallyEdited:x.timeManuallyEdited||false,subParticipants:x.subParticipants||[],persons:x.persons||[]}));
+      this.greeting=localStorage.getItem(this._key('greeting'))||this.greetingOptions[0];
+      this.departureTime=localStorage.getItem(this._key('departure'))||'07:00';
+      this.useSuperscript=localStorage.getItem(this._key('superscript'))==='true';
+      this.useUhrBei=localStorage.getItem(this._key('uhrbei'))==='true';
+    }catch{}
+    this.$('toggle-superscript').classList.toggle('on',this.useSuperscript);
+    this.$('toggle-uhrbei').classList.toggle('on',this.useUhrBei);
+  }
+
+  async loadStations() {
+    try{
+      const resp=await fetch('stations.js',{cache:'no-cache'});
+      if(!resp.ok)throw new Error(resp.status);
+      const text=await resp.text();
+      function exBlock(str,kw){
+        const idx=str.indexOf(kw);if(idx===-1)return null;
+        const s=str.indexOf('{',idx);if(s===-1)return null;
+        let d=0;for(let i=s;i<str.length;i++){if(str[i]==='{')d++;else if(str[i]==='}'){d--;if(d===0)return str.slice(s,i+1);}}return null;
+      }
+      const defM=text.match(/const\s+defaultCoords\s*=\s*({[\s\S]*?});/);
+      const stM=text.match(/this\.stations\s*=\s*({[\s\S]*?});/);
+      const tmM=text.match(/this\.travelTimes\s*=\s*({[\s\S]*?});/);
+      const trfB=exBlock(text,'this.treffpunkt');
+      const trtB=exBlock(text,'this.trefftravelTimes');
+      const ordB=exBlock(text,'this.participantOrders');
+      const grM=text.match(/this\.greetingOptions\s*=\s*(\[[\s\S]*?\]);/);
+      const machB=exBlock(text,'this.machineStop');
+      if(defM)this.defaultCoordinates=Function('"use strict";return('+defM[1]+')')();
+      if(stM)this.stations=Function('"use strict";return('+stM[1]+')')();
+      if(tmM)this.travelTimes=Function('"use strict";return('+tmM[1]+')')();
+      if(trfB)this.treffpunkt=Function('"use strict";return('+trfB+')')();
+      if(trtB)this.trefftravelTimes=Function('"use strict";return('+trtB+')')();
+      if(ordB)this.participantOrders=Function('"use strict";return('+ordB+')')();
+      if(grM)this.greetingOptions=Function('"use strict";return('+grM[1]+')')();
+      if(machB)this.machineStop=Function('"use strict";return('+machB+')')();
+    }catch(e){console.warn('stations.js:',e.message);}
+
+    this._renderDriverChips();
+    this._loadData();
+    if(this.driver&&this.participants.length===0)this._loadDefaultP();
+    this._renderGreetingChips();
+    this._renderTimeline();
+    this._updateDepDisplay();
+    this._initSortable();
+    this._updateSettingsDisplay();
+  }
+
+  _renderDriverChips() {
+    const drivers=[...new Set([
+      ...Object.keys(this.participantOrders).filter(k=>!k.startsWith('_')),
+      ...Object.keys(localStorage).filter(k=>k.startsWith('rs_')&&k.endsWith('_participants')).map(k=>k.replace('rs_','').replace('_participants',''))
+    ])];
+    this.$('driver-chips').innerHTML='';
+    drivers.forEach((name,i)=>{
+      const chip=document.createElement('button');
+      chip.className='driver-chip'+(name===this.driver?' active':'');
+      chip.textContent=name;
+      chip.style.animationDelay=`${i*0.05}s`;
+      chip.onclick=()=>this._switchDriver(name);
+      this.$('driver-chips').appendChild(chip);
+    });
+  }
+
+  _switchDriver(name) {
+    if(this.driver===name)return;
+    this._saveData();
+    this.driver=name;this.participants=[];
+    this._loadData();
+    if(this.participants.length===0)this._loadDefaultP();
+    this._renderDriverChips();this._renderGreetingChips();
+    this._renderTimeline();this._updateDepDisplay();this._initSortable();
+    this.$('result-panel').classList.remove('visible');
+    this._toast(`👤 ${name}`);
+  }
+
+  _loadDefaultP() {
+    const orders=this.participantOrders[this.driver]||[];
+    this.participants=orders.map((item,idx)=>{
+      const prev=idx===0?this.driver:(this.participants[idx-1]?.name||this.driver);
+      if(typeof item==='string')return{type:'kollege',name:item,time:this._tt(prev,item),subParticipants:[],persons:[],routeCalculated:false,timeManuallyEdited:false};
+      if(item.main)return{type:'kollege',name:item.main,time:this._tt(prev,item.main),subParticipants:item.subParticipants||[],persons:[],routeCalculated:false,timeManuallyEdited:false};
+      if(item.treffpunkt)return{type:'treffpunkt',name:item.treffpunkt,time:this._trt(prev,item.treffpunkt),subParticipants:[],persons:item.persons||[],routeCalculated:false,timeManuallyEdited:false};
+      return null;
+    }).filter(Boolean);
+    this._saveData();
+  }
+
+  _tt(a,b){const k1=`${a}-${b}`,k2=`${b}-${a}`;return this.travelTimes[k1]??this.travelTimes[k2]??10;}
+  _trt(a,b){const k1=`${b}-${a}`,k2=`${a}-${b}`;return this.trefftravelTimes[k1]??this.trefftravelTimes[k2]??15;}
+
+  _renderGreetingChips() {
+    this.$('greeting-chips').innerHTML='';
+    this.greetingOptions.forEach(g=>{
+      const chip=document.createElement('button');
+      chip.className='greeting-chip'+(g===this.greeting?' active':'');
+      chip.textContent=g;
+      chip.onclick=()=>{this.greeting=g;this._renderGreetingChips();this._saveData();};
+      this.$('greeting-chips').appendChild(chip);
+    });
+  }
+
+  _depMin(){const[h,m]=this.departureTime.split(':').map(Number);return h*60+m;}
+
+  _updateDepDisplay() {
+    this.$('dep-time-display').textContent=this.departureTime;
+    const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();
+    const diff=this._depMin()-nowMin;
+    const badge=this.$('dep-status-badge');
+    if(diff>10){badge.textContent=`● in ${diff} min`;badge.className='dep-badge';}
+    else if(diff>0){badge.textContent=`⚡ in ${diff} min`;badge.className='dep-badge warn';}
+    else if(diff>-5){badge.textContent='● Jetzt';badge.className='dep-badge';}
+    else{badge.textContent=`⚠ −${Math.abs(diff)} min`;badge.className='dep-badge late';}
+  }
+
+  _openDepModal(){this.$('dep-time-input').value=this.departureTime;this._openModal('modal-dep-time');}
+
+  _calcTimes(){let min=this._depMin();return this.participants.map(p=>{min+=p.time;return min;});}
+
+  _minToTime(t){
+    const h=Math.floor(t/60)%24,m=t%60;
+    if(this.useSuperscript){const sup=['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'];return `${String(h).padStart(2,'0')}${m.toString().padStart(2,'0').split('').map(d=>sup[+d]).join('')}`;}
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }
+
+  _renderTimeline() {
+    const tl=this.$('timeline');tl.innerHTML='';
+    if(!this.driver){
+      tl.innerHTML='<div class="empty-state"><div class="empty-icon">👆</div><div class="empty-title">Fahrer auswählen</div><div class="empty-sub">Tippe oben auf deinen Namen.</div></div>';return;
+    }
+    if(!this.participants.length){
+      tl.innerHTML='<div class="empty-state"><div class="empty-icon">🗺</div><div class="empty-title">Noch keine Teilnehmer</div><div class="empty-sub">Füge Kollegen oder Treffpunkte hinzu.</div></div>';return;
+    }
+    const times=this._calcTimes();
+    this.participants.forEach((p,idx)=>{
+      const item=document.createElement('div');
+      item.className='timeline-item';
+      item.style.animationDelay=`${idx*0.07}s`;
+      const isTreff=p.type==='treffpunkt';
+      const dotCls=isTreff?'treffpunkt':(p.routeCalculated?'active':'');
+      const cardCls=isTreff?'treffpunkt':(p.routeCalculated?'active':'');
+      const mapsColored=p.routeCalculated;
+
+      let personsHtml='';
+      if(isTreff&&p.persons?.length)personsHtml=`<div class="tl-persons">${p.persons.map(n=>`<span class="tl-person-tag">📍 ${n}</span>`).join('')}</div>`;
+      else if(p.subParticipants?.length)personsHtml=`<div class="tl-persons">${p.subParticipants.map(n=>`<span class="tl-sub-tag">＋ ${n}</span>`).join('')}</div>`;
+
+      item.innerHTML=`
+        <div class="tl-left">
+          <div class="tl-time">${this._minToTime(times[idx])}</div>
+          <div class="tl-line">
+            <div class="tl-dot ${dotCls}">${isTreff?'📍':''}</div>
+          </div>
+        </div>
+        <div class="tl-card ${cardCls}">
+          <div class="tl-card-header">
+            <div class="tl-name">${p.name}</div>
+            <div class="tl-actions">
+              <button class="tl-action-btn maps-btn ${mapsColored?'calculated':''}" data-idx="${idx}" title="Route berechnen">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="${mapsColored?'#ea4335':'var(--text-muted)'}"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>${mapsColored?`<circle cx="12" cy="9" r="2.5" fill="#fff"/>`:`<circle cx="12" cy="9" r="2.5" fill="var(--bg)"/>`}</svg>
+              </button>
+              <span class="tl-drag" data-drag="true" title="Ziehen">⠿</span>
+              <button class="tl-action-btn edit-btn" data-idx="${idx}">✎</button>
+            </div>
+          </div>
+          <div class="tl-meta">
+            <span class="tl-duration">${p.time} min</span>
+            ${p.timeManuallyEdited?'<span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">✎</span>':''}
+          </div>
+          ${personsHtml}
+        </div>`;
+
+      item.querySelector('.edit-btn').onclick=e=>{e.stopPropagation();this._openEditModal(+e.currentTarget.dataset.idx);};
+      item.querySelector('.maps-btn').onclick=e=>{e.stopPropagation();this._calcRoute(+e.currentTarget.dataset.idx);};
+      tl.appendChild(item);
+    });
+
+    // Machine stop
+    const mMin=this._depMin()+this.participants.reduce((a,p)=>a+p.time,0)+this.machineStop.time;
+    const mItem=document.createElement('div');
+    mItem.className='timeline-item';
+    mItem.style.animationDelay=`${this.participants.length*0.07}s`;
+    mItem.innerHTML=`
+      <div class="tl-left">
+        <div class="tl-time">${this._minToTime(mMin)}</div>
+        <div class="tl-line"><div class="tl-dot" style="border-color:var(--accent);background:var(--accent-dim);font-size:10px;">⚙</div></div>
+      </div>
+      <div class="tl-card" style="border-left-color:var(--accent)!important;">
+        <div class="tl-card-header">
+          <div class="tl-name" style="color:var(--accent)">${this.machineStop.name}</div>
+        </div>
+        <div class="tl-meta"><span class="tl-duration">${this.machineStop.time} min</span></div>
+      </div>`;
+    tl.appendChild(mItem);
+  }
+
+  _initSortable() {
+    if(this.sortable){this.sortable.destroy();this.sortable=null;}
+    const el=this.$('timeline');if(!el)return;
+    this.sortable=new Sortable(el,{
+      handle:'[data-drag="true"]',animation:200,
+      ghostClass:'sortable-ghost',
+      onEnd:evt=>{
+        if(evt.oldIndex===evt.newIndex)return;
+        if(evt.newIndex>=this.participants.length){this._renderTimeline();this._initSortable();return;}
+        if(evt.oldIndex>=this.participants.length)return;
+        const[moved]=this.participants.splice(evt.oldIndex,1);
+        this.participants.splice(evt.newIndex,0,moved);
+        this._saveData();this._renderTimeline();this._initSortable();
+      }
+    });
+  }
+
+  _getUsed(){
+    const s=new Set([this.driver]);
+    this.participants.forEach(p=>{s.add(p.name);(p.subParticipants||[]).forEach(n=>s.add(n));(p.persons||[]).forEach(n=>s.add(n));});
+    return s;
+  }
+
+  _openAddModal() {
+    if(!this.driver){this._toast('Erst Fahrer wählen');return;}
+    this._addType='kollege';this._addSubNames=[];this._addTreffPersons=[];
+    document.querySelectorAll('.type-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelector('[data-type="kollege"]').classList.add('active');
+    this.$('add-kollege-panel').style.display='';
+    this.$('add-treff-panel').style.display='none';
+    const used=this._getUsed();
+    const sel=this.$('add-name-select');
+    sel.innerHTML='<option value="">— auswählen —</option>';
+    Object.keys(this.defaultCoordinates).sort().forEach(n=>{
+      if(!used.has(n)&&n!==this.driver){const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);}
+    });
+    this.$('add-sub-list').innerHTML='';
+    const ts=this.$('add-treff-select');
+    ts.innerHTML='<option value="">— auswählen —</option>';
+    Object.keys(this.treffpunkt).forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;ts.appendChild(o);});
+    this.$('add-treff-persons-list').innerHTML='';
+    this._openModal('modal-add');
+  }
+
+  _addSubRow(listId, arr, inEdit=false) {
+    const used=this._getUsed();
+    if(inEdit&&this._editIndex!==null){(this.participants[this._editIndex].subParticipants||[]).forEach(n=>used.delete(n));}
+    arr.forEach(n=>used.add(n));
+    const avail=Object.keys(this.defaultCoordinates).sort().filter(n=>!used.has(n)&&n!==this.driver);
+    if(!avail.length){this._toast('Keine Namen verfügbar');return;}
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;gap:6px;align-items:center;';
+    const sel=document.createElement('select');sel.className='form-select';sel.style.flex='1';
+    avail.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+    const del=document.createElement('button');
+    del.innerHTML='×';del.type='button';
+    del.style.cssText='width:32px;height:32px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--red);cursor:pointer;font-size:18px;flex-shrink:0;';
+    let cur=avail[0];arr.push(cur);
+    sel.onchange=()=>{const idx=arr.indexOf(cur);if(idx>=0)arr.splice(idx,1);cur=sel.value;arr.push(cur);};
+    del.onclick=()=>{const idx=arr.indexOf(cur);if(idx>=0)arr.splice(idx,1);wrap.remove();};
+    wrap.appendChild(sel);wrap.appendChild(del);
+    this.$(listId).appendChild(wrap);
+  }
+
+  _confirmAdd() {
+    if(this._addType==='kollege'){
+      const name=this.$('add-name-select').value;
+      if(!name){this._toast('Name auswählen');return;}
+      const prev=this.participants.length?this.participants[this.participants.length-1].name:this.driver;
+      this.participants.push({type:'kollege',name,time:this._tt(prev,name),subParticipants:[...this._addSubNames],persons:[],routeCalculated:false,timeManuallyEdited:false});
+    }else{
+      const treff=this.$('add-treff-select').value;
+      if(!treff){this._toast('Treffpunkt auswählen');return;}
+      const prev=this.participants.length?this.participants[this.participants.length-1].name:this.driver;
+      this.participants.push({type:'treffpunkt',name:treff,time:this._trt(prev,treff),subParticipants:[],persons:[...this._addTreffPersons],routeCalculated:false,timeManuallyEdited:false});
+    }
+    this._saveData();this._renderTimeline();this._initSortable();
+    this._closeModal('modal-add');this._toast('✅ Hinzugefügt');
+  }
+
+  _openEditModal(idx) {
+    const p=this.participants[idx];this._editIndex=idx;
+    this.$('edit-modal-title').textContent=p.name;
+    this.$('edit-time-val').textContent=p.time;
+    const sg=this.$('edit-sub-group');
+    const sl=this.$('edit-sub-list');sl.innerHTML='';
+    if(p.type==='kollege'){
+      sg.style.display='';
+      (p.subParticipants||[]).forEach(name=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-3);border-radius:var(--radius-sm);';
+        row.innerHTML=`<span style="font-size:13px">${name}</span><button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:18px;">×</button>`;
+        row.querySelector('button').onclick=()=>{p.subParticipants=p.subParticipants.filter(n=>n!==name);row.remove();};
+        sl.appendChild(row);
+      });
+    }else sg.style.display='none';
+    this._openModal('modal-edit');
+  }
+
+  _saveEdit() {
+    const p=this.participants[this._editIndex];
+    p.time=parseInt(this.$('edit-time-val').textContent);
+    p.timeManuallyEdited=true;p.routeCalculated=false;
+    this._saveData();this._renderTimeline();this._initSortable();
+    this._closeModal('modal-edit');this._toast('✅ Gespeichert');
+  }
+
+  _deleteP() {
+    this.participants.splice(this._editIndex,1);
+    this._saveData();this._renderTimeline();this._initSortable();
+    this._closeModal('modal-edit');this._toast('🗑 Entfernt');
+  }
+
+  async _calcRoute(idx) {
+    const p=this.participants[idx];
+    const prev=idx===0?this.driver:this.participants[idx-1].name;
+    const from=this.defaultCoordinates[prev];
+    const to=p.type==='treffpunkt'?this.treffpunkt[p.name]:this.defaultCoordinates[p.name];
+    if(!from||!to){this._toast('⚠ Koordinaten fehlen');return;}
+    const btn=document.querySelector(`.maps-btn[data-idx="${idx}"]`);
+    if(btn){btn.style.opacity='0.4';btn.style.pointerEvents='none';}
+    try{
+      const r=await fetch('/api/calculate-time',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from,to,departureTime:'now'})});
+      const d=await r.json();
+      if(d.durationMinutes){p.time=d.durationMinutes;p.routeCalculated=true;p.timeManuallyEdited=false;this._saveData();this._renderTimeline();this._initSortable();this._toast(`✅ ${d.durationMinutes} min`);return;}
+    }catch{}
+    // Fallback
+    p.time=this._tt(prev,p.name)||10;p.routeCalculated=true;p.timeManuallyEdited=false;
+    this._saveData();this._renderTimeline();this._initSortable();this._toast(`📍 ${p.time} min (Schätzung)`);
+  }
+
+  _buildMessage() {
+    if(!this.driver||!this.participants.length)return null;
+    const times=this._calcTimes();
+    const lines=[this.greeting+' 👋','',`🚗 ${this.driver} — Abfahrt ${this.departureTime}`,''];
+    this.participants.forEach((p,idx)=>{
+      const t=this._minToTime(times[idx]);
+      const pre=this.useUhrBei?`um ${t} Uhr bei`:`${t}`;
+      if(p.type==='treffpunkt'){const ps=p.persons?.length?` (${p.persons.join(', ')})`:'';}
+      if(p.type==='treffpunkt')lines.push(`📍 ${pre} ${p.name}${p.persons?.length?` (${p.persons.join(', ')})`:''}`);
+      else lines.push(`🚌 ${pre} ${p.name}${p.subParticipants?.length?` (+ ${p.subParticipants.join(', ')})`:''}`);
+    });
+    const mMin=this._depMin()+this.participants.reduce((a,p)=>a+p.time,0)+this.machineStop.time;
+    lines.push('',`⚙ ${this._minToTime(mMin)} ${this.machineStop.name}`,'','Gute Fahrt! 🙌');
+    return lines.join('\n');
+  }
+
+  _generate() {
+    const msg=this._buildMessage();
+    if(!msg){this._toast('Kein Fahrer / Teilnehmer');return;}
+    this.$('result-text').textContent=msg;
+    this.$('result-panel').classList.add('visible');
+    this.$('result-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+    this._saveHistory();
+  }
+
+  _copyResult() {
+    navigator.clipboard?.writeText(this.$('result-text').textContent).then(()=>this._toast('📋 Kopiert!'));
+  }
+
+  _openMaps() {
+    if(!this.driver||!this.participants.length)return;
+    const all=[this.defaultCoordinates[this.driver],...this.participants.map(p=>p.type==='treffpunkt'?this.treffpunkt[p.name]:this.defaultCoordinates[p.name])].filter(Boolean);
+    if(all.length<2)return;
+    const wp=all.slice(1,-1).map(c=>`${c.lat},${c.lng}`).join('|');
+    const o=all[0],d=all[all.length-1];
+    window.open(`https://www.google.com/maps/dir/?api=1&origin=${o.lat},${o.lng}&destination=${d.lat},${d.lng}&waypoints=${wp}&travelmode=driving`,'_blank');
+  }
+
+  _openShare() {
+    const msg=this._buildMessage();
+    if(!msg){this._toast('Erst generieren');return;}
+    this.$('share-preview').textContent=msg;
+    this._openModal('modal-share');
+  }
+
+  _startLive() {
+    if(!navigator.geolocation){this._toast('GPS nicht verfügbar');return;}
+    this.liveActive=true;
+    this.$('live-bar').classList.add('active');
+    this.$('btn-live-start').style.display='none';
+    this._toast('▶ Live-Modus');
+    this.liveWatchId=navigator.geolocation.watchPosition(pos=>this._onPos(pos),()=>{},{enableHighAccuracy:true,maximumAge:5000});
+    this._liveInt=setInterval(()=>this._updateDepDisplay(),30000);
+  }
+
+  _stopLive() {
+    this.liveActive=false;
+    this.$('live-bar').classList.remove('active');
+    this.$('btn-live-start').style.display='';
+    if(this.liveWatchId!==null)navigator.geolocation.clearWatch(this.liveWatchId);
+    clearInterval(this._liveInt);
+    this._toast('■ Live gestoppt');
+  }
+
+  _onPos(pos) {
+    const next=this.participants.find(p=>!p._done);
+    if(!next)return;
+    const to=next.type==='treffpunkt'?this.treffpunkt[next.name]:this.defaultCoordinates[next.name];
+    if(!to)return;
+    const R=6371,lat1=pos.coords.latitude*Math.PI/180,lat2=to.lat*Math.PI/180;
+    const dLat=(to.lat-pos.coords.latitude)*Math.PI/180,dLng=(to.lng-pos.coords.longitude)*Math.PI/180;
+    const a=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+    const km=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    this.$('live-next-text').textContent=`${next.name}: ~${Math.round(km/0.6)} min`;
+  }
+
+  _renderHistory() {
+    let all=[];
+    Object.keys(localStorage).filter(k=>k.startsWith('rsHistory_')).forEach(k=>{try{all=all.concat(JSON.parse(localStorage.getItem(k)||'[]'));}catch{}});
+    all.sort((a,b)=>b.ts-a.ts);
+    const total=all.length;
+    const avgP=total?Math.round(all.reduce((a,h)=>a+(h.count||0),0)/total):0;
+    const now=new Date();
+    const thisMonth=all.filter(h=>{const d=new Date(h.ts);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length;
+    this.$('stats-grid').innerHTML=`
+      <div class="stat-card"><div class="stat-value">${total}</div><div class="stat-label">Fahrten gesamt</div></div>
+      <div class="stat-card"><div class="stat-value">${thisMonth}</div><div class="stat-label">Diesen Monat</div></div>
+      <div class="stat-card"><div class="stat-value">${avgP}</div><div class="stat-label">Ø Teilnehmer</div></div>
+      <div class="stat-card"><div class="stat-value">${Object.keys(this.participantOrders).length||0}</div><div class="stat-label">Fahrer</div></div>`;
+    const list=this.$('history-list');list.innerHTML='';
+    if(!all.length){list.innerHTML='<div class="empty-state" style="padding:32px 0"><div class="empty-icon">📋</div><div class="empty-title">Noch keine Fahrten</div></div>';return;}
+    all.slice(0,20).forEach(h=>{
+      const c=document.createElement('div');c.className='history-card';
+      c.innerHTML=`<div class="history-card-top"><div class="history-date">${h.date} · ${h.driver}</div><div class="history-badge ok">${h.count} P.</div></div><div class="history-meta"><span>⏰ ${h.departure||'—'}</span><span>💬 ${h.greeting||'—'}</span></div>`;
+      list.appendChild(c);
+    });
+  }
+
+  _updateSettingsDisplay() {
+    this.$('setting-machine-val').textContent=`${this.machineStop.name} — ${this.machineStop.time} min`;
+  }
+
+  _clearProfile() {
+    if(!this.driver)return;
+    ['participants','greeting','departure','superscript','uhrbei'].forEach(k=>localStorage.removeItem(this._key(k)));
+    this.participants=[];this.greeting=this.greetingOptions[0];this.departureTime='07:00';
+    this._renderTimeline();this._renderGreetingChips();this._updateDepDisplay();
+    this.$('result-panel').classList.remove('visible');
+    this._toast('🗑 Zurückgesetzt');
+  }
+
+  async _checkGod() {
+    const pwd=this.$('god-password').value;if(!pwd)return;
+    try{
+      const r=await fetch('/api/check-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pwd})});
+      const d=await r.json();
+      if(d.ok){sessionStorage.setItem('rsGodAuth','1');window.location.href='redaktor.html';}
+      else this._toast('❌ Falsches Passwort');
+    }catch{this._toast('⚠ Server nicht erreichbar');}
+    this.$('god-password').value='';
+  }
+
+  _toast(msg,dur=2800){
+    const t=this.$('toast');t.textContent=msg;t.classList.add('show');
+    clearTimeout(this._toastTimer);this._toastTimer=setTimeout(()=>t.classList.remove('show'),dur);
+  }
+
+  async init() {
+    this._applyTheme();
+    if(sessionStorage.getItem('rsGodAuth')==='1') this.$('btn-god').classList.add('active');
+    await this.loadStations();
+    setInterval(()=>this._updateDepDisplay(),60000);
+  }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  window._app=new RouteSync();
+  window._app.init();
+});
+</script>
+</body>
+</html>
