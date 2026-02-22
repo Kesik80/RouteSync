@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/redaktor", "destination": "/redaktor.html" }
+  ]
+}

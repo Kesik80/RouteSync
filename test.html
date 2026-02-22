@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>RS Test</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d0d14; color: #f0f0f8; font-family: sans-serif; padding: 20px; }
+button { display: block; width: 100%; padding: 14px; margin: 8px 0; background: #6c9fff; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; }
+.panel { display: none; padding: 16px; background: rgba(255,255,255,0.08); border-radius: 10px; margin: 8px 0; border: 1px solid rgba(255,255,255,0.15); }
+.panel.open { display: block; }
+#log { margin-top: 20px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 10px; font-family: monospace; font-size: 12px; min-height: 60px; line-height: 1.8; }
+.ok { color: #4ade80; } .err { color: #f87171; }
+</style>
+</head>
+<body>
+
+<h2 style="margin-bottom:16px;color:#6c9fff;">🔧 RS Minimal Test</h2>
+
+<button onclick="testBtn('timeline')">📋 Расписание</button>
+<div class="panel" id="panel-timeline">✅ Панель расписания открылась!</div>
+
+<button onclick="testBtn('map')">🗺 Карта</button>
+<div class="panel" id="panel-map">✅ Панель карты открылась!</div>
+
+<button onclick="testBtn('passengers')">👥 Пассажиры</button>
+<div class="panel" id="panel-passengers">✅ Панель пассажиров открылась!</div>
+
+<button onclick="testBtn('reminder')">🔔 Напомни</button>
+<div class="panel" id="panel-reminder">✅ Напоминание открылось!</div>
+
+<hr style="border-color:rgba(255,255,255,0.1);margin:16px 0;">
+
+<button onclick="testAPI()" style="background:#4ade80;color:#000;">🌐 Тест API</button>
+
+<div id="log">Нажми кнопку...</div>
+
+<script>
+var log = document.getElementById('log');
+function addLog(msg, cls) {
+  var d = document.createElement('div');
+  d.className = cls || '';
+  d.textContent = '› ' + msg;
+  log.appendChild(d);
+}
+
+var state = {};
+function testBtn(name) {
+  state[name] = !state[name];
+  var panel = document.getElementById('panel-' + name);
+  if (state[name]) {
+    panel.classList.add('open');
+    addLog(name + ' открыт ✓', 'ok');
+  } else {
+    panel.classList.remove('open');
+    addLog(name + ' закрыт', '');
+  }
+}
+
+async function testAPI() {
+  addLog('Проверяю /api/maps-key...');
+  try {
+    var r = await fetch('/api/maps-key');
+    addLog('/api/maps-key: ' + r.status + ' ' + r.statusText, r.ok ? 'ok' : 'err');
+  } catch(e) { addLog('maps-key ERROR: ' + e.message, 'err'); }
+
+  try {
+    var r2 = await fetch('/api/parse-coords?input=51.530,6.850');
+    addLog('/api/parse-coords: ' + r2.status, r2.ok ? 'ok' : 'err');
+  } catch(e) { addLog('parse-coords ERROR: ' + e.message, 'err'); }
+
+  try {
+    var r3 = await fetch('/api/calculate-time', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({originLat:51.53,originLng:6.85,destLat:51.54,destLng:7.1})
+    });
+    addLog('/api/calculate-time: ' + r3.status, r3.ok ? 'ok' : 'err');
+  } catch(e) { addLog('calculate-time ERROR: ' + e.message, 'err'); }
+}
+
+addLog('Страница загружена. JS работает ✓', 'ok');
+</script>
+</body>
+</html>
