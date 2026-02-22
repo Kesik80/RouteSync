@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>RouteSync Debug</title>
+<style>
+body { font-family: monospace; background: #0d0d14; color: #f0f0f8; padding: 20px; font-size: 14px; }
+.ok { color: #4ade80; }
+.err { color: #f87171; }
+.warn { color: #fbbf24; }
+.section { margin: 16px 0; padding: 12px; background: rgba(255,255,255,0.06); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+h2 { color: #6c9fff; margin: 0 0 8px 0; font-size: 14px; }
+button { padding: 10px 16px; margin: 4px; background: #6c9fff; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+button.test { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+#log { white-space: pre-wrap; line-height: 1.8; }
+</style>
+</head>
+<body>
+<h1 style="color:#6c9fff;margin-bottom:20px;">🔍 RouteSync Debug</h1>
+
+<div class="section">
+<h2>1. Тест JS</h2>
+<div id="jsTest"></div>
+</div>
+
+<div class="section">
+<h2>2. Тест кнопок (симуляция RS)</h2>
+<button onclick="testToggle('timeline')">📋 Расписание</button>
+<button onclick="testToggle('map')">🗺 Карта</button>
+<button onclick="testToggle('passengers')">👥 Пассажиры</button>
+<button onclick="testToggle('reminder')">🔔 Напомни</button>
+<button onclick="testLive()">🚗 Старт</button>
+</div>
+
+<div class="section">
+<h2>3. Тест API</h2>
+<button class="test" onclick="testAPI('/api/maps-key')">GET /api/maps-key</button>
+<button class="test" onclick="testAPI('/api/calculate-time', 'POST')">POST /api/calculate-time</button>
+<button class="test" onclick="testAPI('/api/parse-coords?input=51.530,6.850')">GET /api/parse-coords</button>
+</div>
+
+<div class="section">
+<h2>Лог</h2>
+<div id="log"></div>
+</div>
+
+<script>
+var log = document.getElementById('log');
+function addLog(msg, cls) {
+  var d = document.createElement('div');
+  d.className = cls || '';
+  d.textContent = new Date().toLocaleTimeString() + ' › ' + msg;
+  log.insertBefore(d, log.firstChild);
+}
+
+// 1. JS environment test
+var jsTest = document.getElementById('jsTest');
+var checks = [];
+checks.push({ name: 'var/function', ok: true });
+checks.push({ name: 'const/let', ok: (function() { try { const x = 1; let y = 2; return true; } catch(e) { return false; } })() });
+checks.push({ name: 'Arrow functions', ok: (function() { try { var f = () => 1; return f() === 1; } catch(e) { return false; } })() });
+checks.push({ name: 'Promise', ok: typeof Promise !== 'undefined' });
+checks.push({ name: 'fetch', ok: typeof fetch !== 'undefined' });
+checks.push({ name: 'btoa/atob', ok: typeof btoa !== 'undefined' });
+checks.push({ name: 'Notification API', ok: typeof Notification !== 'undefined' });
+checks.push({ name: 'classList.toggle(el,bool)', ok: (function() { try { var d = document.createElement('div'); d.classList.toggle('x', true); return d.classList.contains('x'); } catch(e) { return false; } })() });
+
+jsTest.innerHTML = checks.map(function(c) {
+  return '<span class="' + (c.ok ? 'ok' : 'err') + '">' + (c.ok ? '✓' : '✗') + ' ' + c.name + '</span>';
+}).join('  ');
+
+// 2. Toggle tests (mirror of RS methods)
+var state = {};
+function testToggle(name) {
+  state[name] = !state[name];
+  addLog('toggle ' + name + ' → ' + (state[name] ? 'OPEN' : 'CLOSE'), state[name] ? 'ok' : '');
+  // Check if classList.toggle works
+  var el = document.getElementById('test-' + name);
+  if (el) {
+    el.classList.toggle('visible', state[name]);
+    addLog('  classList.toggle("visible", ' + state[name] + ') — element: ' + (el ? 'found' : 'NOT FOUND'), 'ok');
+  } else {
+    addLog('  element #test-' + name + ' not found (normal in debug)', 'warn');
+  }
+}
+
+function testLive() {
+  addLog('initLive called', 'ok');
+  // Test that window._appInstance check works
+  addLog('  window._appInstance = ' + (typeof window._appInstance), window._appInstance ? 'ok' : 'warn');
+}
+
+// 3. API tests
+async function testAPI(url, method) {
+  addLog('Fetching ' + url + '...');
+  try {
+    var opts = { method: method || 'GET', headers: {} };
+    if (method === 'POST') {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify({ originLat: 51.53, originLng: 6.85, destLat: 51.54, destLng: 7.1 });
+    }
+    var r = await fetch(url, opts);
+    var text = await r.text();
+    addLog('  ' + r.status + ' ' + r.statusText + ': ' + text.slice(0, 100), r.ok ? 'ok' : 'err');
+  } catch(e) {
+    addLog('  ERROR: ' + e.message, 'err');
+  }
+}
+
+addLog('Debug page loaded. Browser: ' + navigator.userAgent.slice(0, 60), 'ok');
+</script>
+</body>
+</html>
