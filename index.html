@@ -3942,15 +3942,13 @@ const RS = {
       return;
     }
 
+    // Build live stops from calculated times
+    const arrivalStr = app.machineStop.arrivalTime;
     const valid = app.participants.filter(p => p.name);
     if (valid.length === 0) {
       app.showToast('⚠️ Нет участников в маршруте');
       return;
     }
-
-    // Build live stops from calculated times
-    const arrivalStr = app.machineStop.arrivalTime;
-    const valid = app.participants.filter(p => p.name);
     const total = valid.reduce((s,p) => s + p.time, 0) + app.machineStop.time;
 
     // Parse arrival as today's time
