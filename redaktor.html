@@ -1,0 +1,2001 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>RouteSync · Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<style>
+/* ══════ TOKENS ══════ */
+:root {
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --bg: #0d0d14;
+  --bg2: #12121e;
+  --surface: rgba(255,255,255,0.055);
+  --surface-solid: #1a1a28;
+  --glass: rgba(255,255,255,0.06);
+  --glass-border: rgba(255,255,255,0.1);
+  --text: #f0f0f8;
+  --text2: rgba(240,240,248,0.55);
+  --text3: rgba(240,240,248,0.3);
+  --border: rgba(255,255,255,0.1);
+  --border2: rgba(255,255,255,0.06);
+  --accent: #6c9fff;
+  --accent2: #5b8dee;
+  --accent-glow: rgba(108,159,255,0.2);
+  --green: #4ade80;
+  --green2: rgba(74,222,128,0.15);
+  --red: #f87171;
+  --red2: rgba(248,113,113,0.15);
+  --amber: #fbbf24;
+  --amber2: rgba(251,191,36,0.15);
+  --orange: #fb923c;
+  --r: 14px;
+  --r-sm: 8px;
+  --r-xs: 6px;
+}
+body.light {
+  --bg: #f4f4f8;
+  --bg2: #eeeef4;
+  --surface: rgba(0,0,0,0.04);
+  --surface-solid: #ffffff;
+  --glass: rgba(255,255,255,0.7);
+  --glass-border: rgba(0,0,0,0.08);
+  --text: #1a1a2e;
+  --text2: rgba(26,26,46,0.55);
+  --text3: rgba(26,26,46,0.3);
+  --border: rgba(0,0,0,0.1);
+  --border2: rgba(0,0,0,0.06);
+  --accent-glow: rgba(108,159,255,0.15);
+  --green2: rgba(74,222,128,0.12);
+  --red2: rgba(248,113,113,0.12);
+  --amber2: rgba(251,191,36,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  padding-bottom: max(env(safe-area-inset-bottom), 80px);
+
+  /* Background mesh */
+  background-image:
+    radial-gradient(ellipse 70% 50% at 20% 10%, rgba(108,159,255,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(192,132,252,0.06) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+body.light {
+  background-image:
+    radial-gradient(ellipse 70% 50% at 20% 10%, rgba(108,159,255,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(192,132,252,0.04) 0%, transparent 60%);
+}
+
+/* ══════ LAYOUT ══════ */
+.app {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 14px;
+}
+
+/* ══════ HEADER ══════ */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 14px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 20% 10%, rgba(108,159,255,0.08) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+body.light .header {
+  background: var(--bg);
+  background-image: none;
+  border-bottom: 1px solid var(--border2);
+}
+
+.header-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--accent) 0%, rgba(192,132,252,0.8) 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(108,159,255,0.35);
+}
+
+.header-info { flex: 1; min-width: 0; }
+
+.header-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.header-sub {
+  font-size: 0.75rem;
+  color: var(--text3);
+  font-weight: 400;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.hdr-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.hdr-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+/* ══════ STATUS BAR ══════ */
+.status-bar {
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border2);
+  background: var(--glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.status-bar.loading { color: var(--text2); }
+.status-bar.ok { border-color: rgba(74,222,128,0.3); background: var(--green2); color: var(--green); }
+.status-bar.err { border-color: rgba(248,113,113,0.3); background: var(--red2); color: var(--red); }
+
+/* ══════ TABS ══════ */
+.tabs-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin-bottom: 12px;
+}
+.tabs-wrap::-webkit-scrollbar { display: none; }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  width: max-content;
+}
+
+.tab {
+  height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+.tab.active {
+  background: var(--accent-glow);
+  border-color: rgba(108,159,255,0.4);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ══════ CARDS ══════ */
+#cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 0.15s, background 0.15s;
+  animation: cardIn 0.22s ease;
+}
+.card:hover { border-color: rgba(255,255,255,0.15); }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card.group-card {
+  border-color: rgba(108,159,255,0.2);
+  background: rgba(108,159,255,0.06);
+}
+
+.card.sub-card {
+  padding: 8px 12px;
+  border-color: var(--border2);
+  background: rgba(0,0,0,0.1);
+  border-left: 2px solid var(--accent-glow);
+}
+body.light .card.sub-card { background: rgba(0,0,0,0.03); }
+
+.group-indent {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── card elements ── */
+.card-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.card-name:hover { color: var(--accent); }
+
+.card-name-input {
+  flex: 1;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-xs);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  outline: none;
+  min-width: 0;
+}
+body.light .card-name-input { background: rgba(0,0,0,0.05); }
+
+.card-coord {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.card-coord input {
+  width: 148px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 5px 8px;
+  outline: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+body.light .card-coord input { background: rgba(0,0,0,0.05); }
+.card-coord input:focus { border-color: var(--accent); color: var(--text); }
+
+.card-time-input {
+  width: 48px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px 6px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
+}
+body.light .card-time-input { background: rgba(0,0,0,0.05); }
+.card-time-input:focus { border-color: var(--accent); }
+
+.time-min {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text3);
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.drag-handle {
+  color: var(--text3);
+  cursor: grab;
+  font-size: 15px;
+  flex-shrink: 0;
+  user-select: none;
+  padding: 0 2px;
+}
+.drag-handle:active { cursor: grabbing; }
+
+.del-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-xs);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.del-btn:hover { background: var(--red2); color: var(--red); }
+
+.add-sub-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-xs);
+  flex-shrink: 0;
+  transition: all 0.15s;
+  font-family: var(--font);
+  line-height: 1;
+}
+.add-sub-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+.google-map-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--r-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  padding: 0;
+}
+.google-map-btn:hover { border-color: #4285f4; background: rgba(66,133,244,0.1); }
+
+/* section count */
+.section-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 2px 9px;
+  color: var(--text3);
+  margin-left: auto;
+}
+
+/* driver row for participantOrders */
+.driver-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 13px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.driver-row label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.driver-row select {
+  flex: 1;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 6px 10px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+body.light .driver-row select { background: rgba(0,0,0,0.05); }
+
+/* ══════ EMPTY STATE ══════ */
+.empty-state {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--text3);
+}
+.empty-state-icon { font-size: 32px; margin-bottom: 8px; }
+.empty-state p { font-size: 0.85rem; font-weight: 400; }
+
+/* ══════ RAW JSON BLOCK ══════ */
+.raw-block {
+  margin-top: 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border2);
+  overflow: hidden;
+}
+
+.raw-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--glass);
+  border: none;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.raw-toggle:hover { color: var(--accent); }
+.raw-toggle-arrow { transition: transform 0.2s; font-size: 10px; }
+.raw-toggle.open .raw-toggle-arrow { transform: rotate(180deg); }
+
+.raw-body { display: none; }
+.raw-body.open { display: block; }
+
+.raw-body textarea {
+  width: 100%;
+  min-height: 140px;
+  background: rgba(0,0,0,0.2);
+  border: none;
+  border-top: 1px solid var(--border2);
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 12px 14px;
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+}
+body.light .raw-body textarea { background: rgba(0,0,0,0.04); }
+
+/* ══════ TOOLBAR ══════ */
+.toolbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 14px max(env(safe-area-inset-bottom),10px);
+  background: rgba(13,13,20,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border2);
+  z-index: 100;
+}
+body.light .toolbar {
+  background: rgba(244,244,248,0.92);
+  border-top: 1px solid var(--border);
+}
+
+.toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.tbtn {
+  height: 44px;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--glass);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  min-width: 0;
+}
+.tbtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.tbtn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.tbtn.primary:hover { background: var(--accent2); }
+.tbtn.success { background: var(--green2); border-color: rgba(74,222,128,0.3); color: var(--green); }
+.tbtn.success:hover { background: rgba(74,222,128,0.22); }
+.tbtn:disabled { opacity: 0.35; cursor: not-allowed; }
+.tbtn:disabled:hover { border-color: var(--border); color: var(--text2); background: var(--glass); }
+
+/* ══════ MODALS ══════ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 500;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 env(safe-area-inset-bottom,0);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.modal-overlay.show { display: flex; animation: fadeIn 0.15s ease; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-sheet {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface-solid);
+  border-radius: var(--r) var(--r) 0 0;
+  padding: 8px 18px 20px;
+  animation: sheetUp 0.28s cubic-bezier(0.34,1.56,0.64,1);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+body.light .modal-sheet { background: #fff; }
+
+@keyframes sheetUp {
+  from { transform: translateY(60px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+.modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+
+.field-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text3);
+  margin-bottom: 6px;
+}
+
+.modal-select {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 12px;
+}
+body.light .modal-select { background: rgba(0,0,0,0.04); }
+.modal-select:focus { border-color: var(--accent); }
+.modal-select[size] { height: auto; min-height: 110px; }
+.modal-select option { padding: 4px 8px; }
+
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+body.light .modal-input { background: rgba(0,0,0,0.04); }
+.modal-input:focus { border-color: var(--accent); }
+.modal-input[type=password] { font-family: var(--mono); letter-spacing: 0.1em; }
+
+.modal-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.mbtn {
+  flex: 1;
+  height: 42px;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mbtn-confirm { background: var(--accent); color: white; }
+.mbtn-confirm:hover { background: var(--accent2); }
+.mbtn-cancel { background: var(--surface); color: var(--text2); border: 1px solid var(--border); }
+.mbtn-cancel:hover { color: var(--text); }
+
+/* token hint */
+.token-hint {
+  font-size: 0.78rem;
+  color: var(--green);
+  margin-bottom: 10px;
+  min-height: 16px;
+}
+
+.gh-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.gh-divider {
+  border: none;
+  border-top: 1px solid var(--border2);
+  margin: 14px 0;
+}
+
+.type-switch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+/* Recalc progress */
+#recalcProgress {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text2);
+  background: rgba(0,0,0,0.15);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  margin-top: 12px;
+  line-height: 1.6;
+}
+body.light #recalcProgress { background: rgba(0,0,0,0.05); }
+
+/* ══════ TOAST ══════ */
+#toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: 100px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+#toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ══════ SORTABLE ══════ */
+.sortable-ghost {
+  opacity: 0.3;
+  background: var(--accent-glow) !important;
+  border: 1px dashed var(--accent) !important;
+}
+.sortable-chosen {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* ══════ SCROLLBAR ══════ */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 100px; }
+
+/* ══════ BACK BUTTON ══════ */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.back-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-icon">⚙️</div>
+    <div class="header-info">
+      <div class="header-title">RouteSync · Editor</div>
+      <div class="header-sub" id="headerSub">Загрузка…</div>
+    </div>
+    <div class="header-actions">
+      <button class="hdr-btn" id="themeBtn" title="Сменить тему">🌙</button>
+      <a href="/" class="hdr-btn" title="← Назад">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- STATUS -->
+  <div id="loadStatus" class="status-bar loading">
+    <span>⏳</span>
+    <span>Загрузка stations.js с GitHub…</span>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs-wrap">
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-group="defaultCoords">👤 Участники</button>
+      <button class="tab" data-group="stations">🚉 Станции</button>
+      <button class="tab" data-group="travelTimes">⏱ Время</button>
+      <button class="tab" data-group="treffpunkt">📍 Treffpunkt</button>
+      <button class="tab" data-group="trefftravelTimes">⏱📍 Treff-Время</button>
+      <button class="tab" data-group="participantOrders">🔢 Порядок</button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <main id="cards"></main>
+
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-center">
+    <button class="tbtn" id="loadBtn" title="Открыть файл">📂</button>
+    <button class="tbtn" id="copyBtn" title="Копировать JSON">📋</button>
+    <button class="tbtn primary" id="addBtn" title="Добавить запись">＋</button>
+    <button class="tbtn" id="recalcBtn" title="Пересчитать время через API">🔄</button>
+    <button class="tbtn" id="applyRaw" title="Применить JSON">✔</button>
+    <button class="tbtn success" id="saveBtn" title="Скачать stations.js">💾</button>
+    <button class="tbtn" id="ghUploadBtn" title="Загрузить на GitHub" disabled>⬆️</button>
+  </div>
+</div>
+
+<!-- FILE INPUT -->
+<input type="file" id="fileInput" accept=".js,.json" style="display:none;">
+
+<!-- ════ MODAL: Добавить ════ -->
+<div id="addModal" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Новая запись</div>
+    <div class="field-label">Тип данных</div>
+    <select id="modalGroupSel" class="modal-select">
+      <option value="defaultCoords">👤 Участник (defaultCoords)</option>
+      <option value="stations">🚉 Станция (stations)</option>
+      <option value="treffpunkt">📍 Treffpunkt</option>
+      <option value="travelTimes">⏱ Время A→B (travelTimes)</option>
+      <option value="trefftravelTimes">⏱📍 Время Treff→Участник</option>
+    </select>
+    <div class="field-label">Название / ключ</div>
+    <input id="newName" class="modal-input" type="text" placeholder="Имя или ключ Имя1-Имя2">
+    <div class="field-label" id="coordLabel">Координаты (lat, lng)</div>
+    <input id="newCoord" class="modal-input" type="text" placeholder="51.530, 6.850 или ссылка Google Maps">
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" id="addCancel">Отмена</button>
+      <button class="mbtn mbtn-confirm" id="addConfirm">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: Выбор участника ════ -->
+<div id="selectModal" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="selectModalTitle">Добавить участника</div>
+    <div id="selectTypeBtns" class="type-switch" style="display:none;">
+      <button id="selectTypeParticipant" class="mbtn mbtn-confirm" style="height:36px;font-size:.82rem;">👤 Коллега</button>
+      <button id="selectTypeTreff" class="mbtn mbtn-cancel" style="height:36px;font-size:.82rem;">📍 Treffpunkt</button>
+    </div>
+    <div id="selectParticipantWrap">
+      <div class="field-label">Выберите участника</div>
+      <select id="selectParticipant" class="modal-select" size="5"></select>
+    </div>
+    <div id="selectTreffWrap" style="display:none;">
+      <div class="field-label">Выберите место встречи</div>
+      <select id="selectTreff" class="modal-select" size="5"></select>
+    </div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" id="selectCancel">Отмена</button>
+      <button class="mbtn mbtn-confirm" id="selectConfirm">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: GitHub ════ -->
+<div id="ghModal" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🐙 Загрузить на GitHub</div>
+    <div class="field-label">GitHub Token (classic)</div>
+    <input id="ghTokenInp" class="modal-input" type="password" placeholder="ghp_xxxxxxxx…" autocomplete="off">
+    <div class="token-hint" id="tokenHint"></div>
+    <div class="gh-section-title">Загрузить stations.js</div>
+    <button class="mbtn mbtn-confirm" id="ghSendStationsBtn" style="width:100%;height:44px;margin-bottom:4px;">⬆️ Отправить stations.js</button>
+    <hr class="gh-divider">
+    <div class="gh-section-title">Другой файл</div>
+    <input id="ghAnyFile" type="file" style="width:100%;margin-bottom:8px;color:var(--text2);font-size:.8rem;">
+    <input id="ghAnyName" class="modal-input" type="text" placeholder="Имя файла на GitHub (data.json)">
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" id="ghCancelBtn">Отмена</button>
+      <button class="mbtn mbtn-confirm" id="ghSendAnyBtn">📤 Отправить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: Пересчёт ════ -->
+<div id="recalcModal" class="modal-overlay">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔄 Пересчёт через Google API</div>
+    <div class="field-label">Что пересчитать</div>
+    <select id="recalcTarget" class="modal-select">
+      <option value="travelTimes">⏱ Участник → участник</option>
+      <option value="trefftravelTimes">📍 Treffpunkt → участники</option>
+      <option value="both">🔄 Всё сразу</option>
+    </select>
+    <div class="field-label">Режим</div>
+    <select id="recalcMode" class="modal-select">
+      <option value="missing">Только со значением по умолчанию (5 мин)</option>
+      <option value="all">Пересчитать все пары</option>
+    </select>
+    <div id="recalcProgress" style="display:none;"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" id="recalcCancel">Отмена</button>
+      <button class="mbtn mbtn-confirm" id="recalcStart">▶ Запустить</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════
+   RouteSync Editor — JS
+   Полная логика редактора stations.js
+   Дизайн: glassmorphism, RouteSync style
+══════════════════════════════════════════════ */
+
+// ── CONFIG ─────────────────────────────────
+const GH_OWNER   = 'Kesik80';
+const GH_REPO    = 'fahrzeit';
+const GH_FILE    = 'stations.js';
+const GH_RAW_URL = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/main/${GH_FILE}`;
+const DEFAULT_TT = 5;
+
+// ── THEME ──────────────────────────────────
+const themeBtn = document.getElementById('themeBtn');
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  themeBtn.textContent = light ? '🌙' : '☀️';
+  localStorage.editorTheme = light ? 'light' : 'dark';
+}
+// Sync with main app theme
+const savedTheme = localStorage.editorTheme || localStorage.theme;
+applyTheme(savedTheme === 'light');
+themeBtn.onclick = () => applyTheme(!document.body.classList.contains('light'));
+
+// ── SVG ICONS ──────────────────────────────
+const coloredMapSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 92.3 132.3" width="14" height="14"><path fill="#1a73e8" d="M60.2 2.2C55.8.8 51 0 46.1 0 32 0 19.3 6.4 10.8 16.5l21.8 18.3L60.2 2.2z"/><path fill="#ea4335" d="M10.8 16.5C4.1 24.5 0 34.9 0 46.1c0 8.7 1.7 15.7 4.6 22l28-33.3-21.8-18.3z"/><path fill="#4285f4" d="M46.2 28.5c9.8 0 17.7 7.9 17.7 17.7 0 4.3-1.6 8.3-4.2 11.4 0 0 13.9-16.6 27.5-32.7-5.6-10.8-15.3-19-27-22.7L32.6 34.8c3.3-3.8 8.1-6.3 13.6-6.3"/><path fill="#fbbc04" d="M46.2 63.8c-9.8 0-17.7-7.9-17.7-17.7 0-4.3 1.5-8.3 4.1-11.3l-28 33.3c4.8 10.6 12.8 19.2 21 29.9l34.1-40.5c-3.3 3.9-8.1 6.3-13.5 6.3"/><path fill="#34a853" d="M59.1 109.2c15.4-24.1 33.3-35 33.3-63 0-7.7-1.9-14.9-5.2-21.3L25.6 98c2.6 3.4 5.3 7.3 7.9 11.3 9.4 14.5 6.8 23.1 12.8 23.1s3.4-8.7 12.8-23.2"/></svg>`;
+const grayMapSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 92.3 132.3" width="14" height="14"><path fill="rgba(255,255,255,0.2)" d="M60.2 2.2C55.8.8 51 0 46.1 0 32 0 19.3 6.4 10.8 16.5l21.8 18.3L60.2 2.2z"/><path fill="rgba(255,255,255,0.2)" d="M10.8 16.5C4.1 24.5 0 34.9 0 46.1c0 8.7 1.7 15.7 4.6 22l28-33.3-21.8-18.3z"/><path fill="rgba(255,255,255,0.2)" d="M46.2 28.5c9.8 0 17.7 7.9 17.7 17.7 0 4.3-1.6 8.3-4.2 11.4 0 0 13.9-16.6 27.5-32.7-5.6-10.8-15.3-19-27-22.7L32.6 34.8c3.3-3.8 8.1-6.3 13.6-6.3"/><path fill="rgba(255,255,255,0.2)" d="M46.2 63.8c-9.8 0-17.7-7.9-17.7-17.7 0-4.3 1.5-8.3 4.1-11.3l-28 33.3c4.8 10.6 12.8 19.2 21 29.9l34.1-40.5c-3.3 3.9-8.1 6.3-13.5 6.3"/><path fill="rgba(255,255,255,0.2)" d="M59.1 109.2c15.4-24.1 33.3-35 33.3-63 0-7.7-1.9-14.9-5.2-21.3L25.6 98c2.6 3.4 5.3 7.3 7.9 11.3 9.4 14.5 6.8 23.1 12.8 23.1s3.4-8.7 12.8-23.2"/></svg>`;
+
+// ── DATA ───────────────────────────────────
+let data = { defaultCoords: {}, stations: {} };
+let travelTimes = {}, participantOrders = {}, treffpunkt = {}, trefftravelTimes = {};
+let autoCalcFlags = {};
+
+function flagKey(key, isTreff) { return (isTreff ? 'treff:' : 'tt:') + key; }
+function setAutoFlag(key, isTreff, val) { autoCalcFlags[flagKey(key, isTreff)] = val; }
+function getAutoFlag(key, isTreff) { return !!autoCalcFlags[flagKey(key, isTreff)]; }
+
+// ── STATUS ─────────────────────────────────
+function setStatus(cls, text, icon = '') {
+  const el = document.getElementById('loadStatus');
+  el.className = 'status-bar ' + cls;
+  const icons = { loading: '⏳', ok: '✅', err: '❌' };
+  el.innerHTML = `<span>${icon || icons[cls] || ''}</span><span>${text}</span>`;
+}
+
+function updateHeaderSub() {
+  const dc = Object.keys(data.defaultCoords).length;
+  const st = Object.keys(data.stations).length;
+  const tt = Object.keys(travelTimes).length;
+  document.getElementById('headerSub').textContent = `${dc} участников · ${st} станций · ${tt} маршрутов`;
+}
+
+// ── TOAST ──────────────────────────────────
+let _toastTimer;
+function showMsg(text, ms = 1800) {
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.classList.add('visible');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('visible'), ms);
+}
+
+// ── MODALS ─────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('show'); });
+});
+
+// ── TABS ───────────────────────────────────
+let currentGroup = 'defaultCoords';
+document.getElementById('tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  currentGroup = tab.dataset.group;
+  render();
+});
+
+// ── GITHUB LOAD ────────────────────────────
+async function loadFromGitHub() {
+  setStatus('loading', 'Загрузка stations.js с GitHub…');
+  try {
+    const r = await fetch(GH_RAW_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    parseStationsText(await r.text());
+    setStatus('ok', 'stations.js загружен с GitHub');
+    document.getElementById('ghUploadBtn').disabled = false;
+    updateHeaderSub();
+    render();
+  } catch(e) {
+    setStatus('err', 'Не удалось загрузить: ' + e.message);
+  }
+}
+
+// ── PARSER ─────────────────────────────────
+function parseStationsText(text) {
+  function extractBraces(str, keyword) {
+    const ki = str.indexOf(keyword);
+    if (ki === -1) return null;
+    const start = str.indexOf('{', ki);
+    if (start === -1) return null;
+    let depth = 0;
+    for (let i = start; i < str.length; i++) {
+      if (str[i] === '{') depth++;
+      else if (str[i] === '}') { if (--depth === 0) return str.slice(start, i + 1); }
+    }
+    return null;
+  }
+
+  const defM = text.match(/const\s+defaultCoords\s*=\s*({[\s\S]*?});/);
+  const stM  = text.match(/this\.stations\s*=\s*({[\s\S]*?});/);
+  const tmM  = text.match(/this\.travelTimes\s*=\s*({[\s\S]*?});/);
+  const trfM = text.match(/this\.treffpunkt\s*=\s*({[\s\S]*?});/);
+  const trtM = text.match(/this\.trefftravelTimes\s*=\s*({[\s\S]*?});/);
+  const ordB = extractBraces(text, 'this.participantOrders');
+  const ordM = ordB ? [null, ordB] : null;
+
+  if (!defM && !stM) throw new Error('Не найдены блоки данных');
+  if (defM) data.defaultCoords = Function('"use strict";return (' + defM[1] + ')')();
+  if (stM)  data.stations      = Function('"use strict";return (' + stM[1]  + ')')();
+  if (tmM)  travelTimes        = Function('"use strict";return (' + tmM[1]  + ')')();
+  if (ordM) participantOrders  = Function('"use strict";return (' + ordM[1] + ')')();
+  if (trfM) treffpunkt         = Function('"use strict";return (' + trfM[1] + ')')();
+  if (trtM) trefftravelTimes   = Function('"use strict";return (' + trtM[1] + ')')();
+}
+
+// ── TRAVEL LINK UTILS ──────────────────────
+function addTravelLinks(newName) {
+  Object.keys(data.defaultCoords).forEach(old => {
+    if (old === newName) return;
+    if (travelTimes[`${newName}-${old}`] === undefined) travelTimes[`${newName}-${old}`] = DEFAULT_TT;
+  });
+}
+function removeTravelLinks(name) {
+  Object.keys(travelTimes).forEach(k => {
+    if (k.startsWith(name + '-') || k.endsWith('-' + name)) delete travelTimes[k];
+  });
+}
+
+function getCoordsFor(name) {
+  return data.defaultCoords[name] || data.stations[name] || null;
+}
+
+function splitPairKey(key, isTreff) {
+  const sourceNames = isTreff
+    ? Object.keys(treffpunkt)
+    : [...Object.keys(data.defaultCoords), ...Object.keys(data.stations)];
+  const destNames = [...Object.keys(data.defaultCoords), ...Object.keys(data.stations)];
+  for (const a of sourceNames) {
+    if (key.startsWith(a + '-')) {
+      const b = key.slice(a.length + 1);
+      if (destNames.includes(b)) return [a, b];
+    }
+  }
+  const i = key.indexOf('-');
+  return [key.slice(0, i), key.slice(i + 1)];
+}
+
+// ── GOOGLE API ─────────────────────────────
+async function fetchTravelTime(originLat, originLng, destLat, destLng) {
+  const resp = await fetch('/api/calculate-time', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ originLat, originLng, destLat, destLng })
+  });
+  if (!resp.ok) { const e = await resp.json().catch(()=>({})); throw new Error(e.message || `HTTP ${resp.status}`); }
+  const d = await resp.json();
+  if (!d.success) throw new Error('API вернул ошибку');
+  return d.duration.minutes;
+}
+
+async function recalcOne(key, src, btnEl) {
+  const [a, b] = splitPairKey(key, false);
+  const cA = getCoordsFor(a), cB = getCoordsFor(b);
+  if (!cA || !cB) { showMsg(`❌ Нет координат: ${!cA ? a : b}`); return; }
+  const orig = btnEl.innerHTML; btnEl.innerHTML = '⏳'; btnEl.disabled = true;
+  try {
+    src[key] = await fetchTravelTime(cA.lat, cA.lng, cB.lat, cB.lng);
+    setAutoFlag(key, false, true);
+    render(); showMsg(`✅ ${key}: ${src[key]} мин`);
+  } catch(e) {
+    showMsg(`❌ ${e.message}`, 3000);
+    btnEl.innerHTML = orig; btnEl.disabled = false;
+  }
+}
+
+async function recalcOneTreff(key, btnEl) {
+  const [treffName, partName] = splitPairKey(key, true);
+  const cT = treffpunkt[treffName], cP = getCoordsFor(partName);
+  if (!cT || !cP) { showMsg(`❌ Нет координат`); return; }
+  const orig = btnEl.innerHTML; btnEl.innerHTML = '⏳'; btnEl.disabled = true;
+  try {
+    trefftravelTimes[key] = await fetchTravelTime(cT.lat, cT.lng, cP.lat, cP.lng);
+    setAutoFlag(key, true, true);
+    render(); showMsg(`✅ ${key}: ${trefftravelTimes[key]} мин`);
+  } catch(e) {
+    showMsg(`❌ ${e.message}`, 3000);
+    btnEl.innerHTML = orig; btnEl.disabled = false;
+  }
+}
+
+async function autoCalcPair(key, isTreff) {
+  try {
+    const [a, b] = splitPairKey(key, isTreff);
+    if (isTreff) {
+      const cT = treffpunkt[a], cP = getCoordsFor(b);
+      if (cT && cP) { trefftravelTimes[key] = await fetchTravelTime(cT.lat, cT.lng, cP.lat, cP.lng); setAutoFlag(key, true, true); }
+    } else {
+      const cA = getCoordsFor(a), cB = getCoordsFor(b);
+      if (cA && cB) { travelTimes[key] = await fetchTravelTime(cA.lat, cA.lng, cB.lat, cB.lng); setAutoFlag(key, false, true); }
+    }
+    render(); showMsg(`✅ Время рассчитано: ${key}`);
+  } catch(e) { console.warn('autoCalc:', key, e.message); }
+}
+
+// ── COORDS PARSER ──────────────────────────
+async function parseAnyCoords(input) {
+  if (!input) return null;
+  input = input.trim();
+  try {
+    showMsg('🔄 Определяю координаты…', 5000);
+    const resp = await fetch('/api/parse-coords?input=' + encodeURIComponent(input));
+    const d = await resp.json();
+    if (d.success) return { lat: d.lat, lng: d.lng };
+    showMsg('❌ ' + (d.error || 'Координаты не распознаны'), 3000);
+    return null;
+  } catch(e) {
+    showMsg('❌ ' + e.message, 3000);
+    return null;
+  }
+}
+
+// ── DOM HELPERS ────────────────────────────
+function mkCard(isGroup, idx) {
+  const d = document.createElement('div');
+  d.className = 'card' + (isGroup ? ' group-card' : '');
+  if (idx !== undefined) d.dataset.index = idx;
+  return d;
+}
+function mkHandle() {
+  const h = document.createElement('span');
+  h.className = 'drag-handle';
+  h.textContent = '⠿';
+  return h;
+}
+function mkDelBtn(cb) {
+  const b = document.createElement('button');
+  b.className = 'del-btn';
+  b.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
+  b.onclick = e => { e.stopPropagation(); cb(); };
+  return b;
+}
+function mkAddSubBtn() {
+  const b = document.createElement('button');
+  b.className = 'add-sub-btn';
+  b.textContent = '+';
+  return b;
+}
+function mkNameEl(name, onRename) {
+  const span = document.createElement('span');
+  span.className = 'card-name';
+  span.textContent = name;
+  span.title = 'Нажмите для переименования';
+  span.onclick = () => {
+    const input = document.createElement('input');
+    input.className = 'card-name-input';
+    input.value = name;
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+    const finish = () => {
+      const newName = input.value.trim();
+      if (!newName || newName === name) { input.replaceWith(span); return; }
+      const ok = onRename(newName);
+      if (!ok) input.replaceWith(span);
+    };
+    input.addEventListener('blur', finish);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') input.blur();
+      if (e.key === 'Escape') input.replaceWith(span);
+    });
+  };
+  return span;
+}
+function mkCoordInput(coord, onChange) {
+  const wrap = document.createElement('div');
+  wrap.className = 'card-coord';
+  wrap.style.marginLeft = 'auto';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = `${coord.lat}, ${coord.lng}`;
+  inp.title = 'Координаты или ссылка Google Maps';
+  inp.addEventListener('change', async () => {
+    const c = await parseAnyCoords(inp.value.trim());
+    if (c) { inp.value = `${c.lat}, ${c.lng}`; onChange(c); showMsg('Сохранено ✓'); }
+    else inp.value = `${coord.lat}, ${coord.lng}`;
+  });
+  wrap.appendChild(inp);
+  return wrap;
+}
+function emptyState(icon, text) {
+  const d = document.createElement('div');
+  d.className = 'empty-state';
+  d.innerHTML = `<div class="empty-state-icon">${icon}</div><p>${text}</p>`;
+  return d;
+}
+
+function appendRawBlock(box) {
+  const rb = document.createElement('div');
+  rb.className = 'raw-block';
+  rb.innerHTML = `
+    <button class="raw-toggle" id="rawToggle">
+      <span>{ } JSON</span>
+      <span class="raw-toggle-arrow">▼</span>
+    </button>
+    <div class="raw-body" id="rawBody">
+      <textarea id="rawJson" spellcheck="false"></textarea>
+    </div>`;
+  box.appendChild(rb);
+  const btn = rb.querySelector('#rawToggle');
+  const body = rb.querySelector('#rawBody');
+  btn.addEventListener('click', () => {
+    const open = body.classList.toggle('open');
+    btn.classList.toggle('open', open);
+  });
+}
+
+function updateRaw() {
+  const grp = currentGroup;
+  const el = document.getElementById('rawJson');
+  if (!el) return;
+  if (grp === 'participantOrders') {
+    const clean = {};
+    Object.keys(participantOrders).filter(k => !k.startsWith('_')).forEach(k => clean[k] = participantOrders[k]);
+    el.value = JSON.stringify(clean, null, 2);
+  } else if (grp === 'travelTimes') el.value = JSON.stringify(travelTimes, null, 2);
+  else if (grp === 'trefftravelTimes') el.value = JSON.stringify(trefftravelTimes, null, 2);
+  else if (grp === 'treffpunkt') el.value = JSON.stringify(treffpunkt, null, 2);
+  else el.value = JSON.stringify(data[grp] || {}, null, 2);
+}
+
+// ── RENDER ─────────────────────────────────
+function render() {
+  const box = document.getElementById('cards');
+  box.innerHTML = '';
+  const grp = currentGroup;
+
+  // participantOrders
+  if (grp === 'participantOrders') {
+    const drivers = Object.keys(data.defaultCoords).sort();
+    const row = document.createElement('div');
+    row.className = 'driver-row';
+    const lbl = document.createElement('label');
+    lbl.textContent = 'Водитель';
+    row.appendChild(lbl);
+    const driverSel = document.createElement('select');
+    driverSel.id = 'driverSel';
+    drivers.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = d;
+      if (d === (participantOrders._lastDriver || drivers[0])) opt.selected = true;
+      driverSel.appendChild(opt);
+    });
+    row.appendChild(driverSel);
+    const addBtn2 = document.createElement('button');
+    addBtn2.className = 'add-sub-btn';
+    addBtn2.textContent = '+';
+    addBtn2.title = 'Добавить участника';
+    addBtn2.style.cssText = 'width:36px;height:36px;flex-shrink:0;';
+    addBtn2.onclick = () => triggerAddOrder(driverSel.value);
+    row.appendChild(addBtn2);
+    box.appendChild(row);
+
+    const listBox = document.createElement('div');
+    listBox.id = 'orderList';
+    listBox.style.display = 'flex';
+    listBox.style.flexDirection = 'column';
+    listBox.style.gap = '6px';
+    box.appendChild(listBox);
+
+    function rebuildList() {
+      const driver = driverSel.value;
+      participantOrders._lastDriver = driver;
+      listBox.innerHTML = '';
+      const order = participantOrders[driver] || [];
+
+      if (!order.length) {
+        listBox.appendChild(emptyState('📋', 'Порядок не задан.\nНажмите + чтобы добавить.'));
+        return;
+      }
+
+      order.forEach((item, idx) => {
+        if (typeof item === 'string') {
+          const div = mkCard(false, idx);
+          const nm = document.createElement('span');
+          nm.className = 'card-name';
+          nm.style.cursor = 'default';
+          nm.textContent = `${idx + 1}. ${item}`;
+          div.appendChild(nm);
+          const subBtn = mkAddSubBtn();
+          subBtn.onclick = e => { e.stopPropagation(); triggerConvertToGroup(driver, idx, item); };
+          div.appendChild(subBtn);
+          div.appendChild(mkHandle());
+          div.appendChild(mkDelBtn(() => { order.splice(idx, 1); rebuildList(); showMsg('Удалено'); }));
+          listBox.appendChild(div);
+        } else if (item?.treffpunkt) {
+          const div = mkCard(false, idx);
+          div.style.borderLeft = '3px solid rgba(251,191,36,0.5)';
+          const nm = document.createElement('span');
+          nm.className = 'card-name';
+          nm.style.cursor = 'default';
+          nm.textContent = `${idx + 1}. 📍 ${item.treffpunkt}`;
+          div.appendChild(nm);
+          const subBtn = mkAddSubBtn();
+          subBtn.title = 'Добавить кто ждёт здесь';
+          subBtn.onclick = e => { e.stopPropagation(); triggerAddTreffPerson(driver, idx, item.treffpunkt); };
+          div.appendChild(subBtn);
+          div.appendChild(mkHandle());
+          div.appendChild(mkDelBtn(() => { order.splice(idx, 1); rebuildList(); showMsg('Удалено'); }));
+          listBox.appendChild(div);
+          if (item.persons?.length) {
+            const indent = document.createElement('div');
+            indent.className = 'group-indent';
+            item.persons.forEach((person, pi) => {
+              const sd = mkCard(false, idx);
+              sd.classList.add('sub-card');
+              const arrow = document.createElement('span');
+              arrow.textContent = '↳';
+              arrow.style.cssText = 'color:var(--text3);font-size:.8rem;flex-shrink:0;';
+              const nm2 = document.createElement('span');
+              nm2.className = 'card-name';
+              nm2.style.cursor = 'default';
+              nm2.textContent = person;
+              sd.appendChild(arrow);
+              sd.appendChild(nm2);
+              sd.appendChild(mkDelBtn(() => { item.persons.splice(pi, 1); rebuildList(); showMsg('Удалено'); }));
+              indent.appendChild(sd);
+            });
+            listBox.appendChild(indent);
+          }
+        } else if (item?.main) {
+          const div = mkCard(true, idx);
+          const nm = document.createElement('span');
+          nm.className = 'card-name';
+          nm.style.cursor = 'default';
+          nm.textContent = `${idx + 1}. ${item.main} 👥`;
+          div.appendChild(nm);
+          const subBtn = mkAddSubBtn();
+          subBtn.onclick = e => { e.stopPropagation(); triggerAddToGroup(driver, idx, item.main); };
+          div.appendChild(subBtn);
+          div.appendChild(mkHandle());
+          div.appendChild(mkDelBtn(() => { order.splice(idx, 1); rebuildList(); showMsg('Удалено'); }));
+          listBox.appendChild(div);
+          if (item.subParticipants?.length) {
+            const indent = document.createElement('div');
+            indent.className = 'group-indent';
+            item.subParticipants.forEach((sub, si) => {
+              const sd = mkCard(false, idx);
+              sd.classList.add('sub-card');
+              const arrow = document.createElement('span');
+              arrow.textContent = '↳';
+              arrow.style.cssText = 'color:var(--text3);font-size:.8rem;flex-shrink:0;';
+              const nm2 = document.createElement('span');
+              nm2.className = 'card-name';
+              nm2.style.cursor = 'default';
+              nm2.textContent = sub;
+              sd.appendChild(arrow);
+              sd.appendChild(nm2);
+              sd.appendChild(mkDelBtn(() => {
+                item.subParticipants.splice(si, 1);
+                if (!item.subParticipants.length) order[idx] = item.main;
+                rebuildList(); showMsg('Удалено');
+              }));
+              indent.appendChild(sd);
+            });
+            listBox.appendChild(indent);
+          }
+        }
+      });
+
+      if (listBox._sortable) listBox._sortable.destroy();
+      listBox._sortable = new Sortable(listBox, {
+        animation: 150,
+        handle: '.drag-handle',
+        filter: '.group-indent',
+        onEnd: () => {
+          const cards = [...listBox.children].filter(el => el.classList.contains('card'));
+          participantOrders[driver] = cards.map(c => order[parseInt(c.dataset.index)]);
+          rebuildList(); showMsg('Порядок изменён');
+        }
+      });
+      updateRaw();
+    }
+
+    driverSel.onchange = () => rebuildList();
+    rebuildList();
+    appendRawBlock(box);
+    updateRaw();
+    return;
+  }
+
+  // treffpunkt
+  if (grp === 'treffpunkt') {
+    const entries = Object.entries(treffpunkt);
+    if (!entries.length) box.appendChild(emptyState('📍', 'Нет пунктов встречи'));
+    entries.forEach(([name, coord]) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const nm = mkNameEl(name, newName => {
+        if (treffpunkt[newName]) { showMsg('Уже существует'); return false; }
+        treffpunkt[newName] = treffpunkt[name];
+        delete treffpunkt[name];
+        Object.keys(trefftravelTimes).filter(k => k.startsWith(name + '-')).forEach(k => {
+          trefftravelTimes[newName + '-' + k.slice(name.length + 1)] = trefftravelTimes[k];
+          delete trefftravelTimes[k];
+        });
+        render(); showMsg('Переименовано'); return true;
+      });
+      card.appendChild(nm);
+      card.appendChild(mkCoordInput(coord, c => { treffpunkt[name] = c; }));
+      card.appendChild(mkDelBtn(() => {
+        Object.keys(trefftravelTimes).forEach(k => { if (k.startsWith(name + '-')) delete trefftravelTimes[k]; });
+        delete treffpunkt[name]; render(); showMsg('Удалено');
+      }));
+      box.appendChild(card);
+    });
+    appendRawBlock(box);
+    document.getElementById('rawJson').value = JSON.stringify(treffpunkt, null, 2);
+    return;
+  }
+
+  // travelTimes / trefftravelTimes
+  if (grp === 'trefftravelTimes' || grp === 'travelTimes') {
+    const src = grp === 'travelTimes' ? travelTimes : trefftravelTimes;
+    const entries = Object.entries(src);
+    if (!entries.length) box.appendChild(emptyState('⏱', 'Нет записей о времени'));
+    entries.forEach(([key, val]) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const nm = document.createElement('span');
+      nm.className = 'card-name';
+      nm.style.cursor = 'default';
+      nm.style.fontSize = '.8rem';
+      nm.textContent = key;
+      card.appendChild(nm);
+
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto;';
+
+      const ti = document.createElement('input');
+      ti.type = 'text';
+      ti.className = 'card-time-input';
+      const unitLabel = document.createElement('span');
+      unitLabel.className = 'time-min';
+
+      function toDisplay(minutes) {
+        if (minutes >= 60) return { text: (minutes / 60).toFixed(2), unit: 'ч' };
+        return { text: String(minutes), unit: 'мин' };
+      }
+      function fromInput(raw) {
+        const s = raw.trim().replace(',', '.');
+        const n = parseFloat(s);
+        if (isNaN(n) || n <= 0) return null;
+        return s.includes('.') ? Math.round(n * 60) : Math.round(n);
+      }
+
+      const { text, unit } = toDisplay(val);
+      ti.value = text;
+      unitLabel.textContent = unit;
+
+      ti.addEventListener('change', () => {
+        const minutes = fromInput(ti.value);
+        if (minutes && minutes > 0) {
+          src[key] = minutes;
+          const { text: t, unit: u } = toDisplay(minutes);
+          ti.value = t; unitLabel.textContent = u;
+          showMsg('Сохранено');
+        } else {
+          const { text: t, unit: u } = toDisplay(src[key]);
+          ti.value = t; unitLabel.textContent = u;
+          showMsg('Неверный формат');
+        }
+      });
+
+      wrap.appendChild(ti);
+      wrap.appendChild(unitLabel);
+
+      const isTreff = grp === 'trefftravelTimes';
+      const recBtn = document.createElement('button');
+      recBtn.className = 'google-map-btn';
+      recBtn.title = 'Рассчитать через Google Maps';
+      recBtn.innerHTML = getAutoFlag(key, isTreff) ? coloredMapSvg : grayMapSvg;
+      recBtn.onclick = e => {
+        e.stopPropagation();
+        isTreff ? recalcOneTreff(key, recBtn) : recalcOne(key, src, recBtn);
+      };
+      ti.addEventListener('change', () => {
+        setAutoFlag(key, isTreff, false);
+        recBtn.innerHTML = grayMapSvg;
+      });
+      wrap.appendChild(recBtn);
+
+      card.appendChild(wrap);
+      card.appendChild(mkDelBtn(() => { delete src[key]; render(); showMsg('Удалено'); }));
+      box.appendChild(card);
+    });
+    appendRawBlock(box);
+    document.getElementById('rawJson').value = JSON.stringify(src, null, 2);
+    return;
+  }
+
+  // defaultCoords / stations
+  const src = data[grp] || {};
+  const entries = Object.entries(src);
+  if (!entries.length) box.appendChild(emptyState(grp === 'stations' ? '🚉' : '👤', 'Список пуст'));
+
+  if (entries.length) {
+    const cnt = document.createElement('div');
+    cnt.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:4px;';
+    cnt.innerHTML = `<span class="section-count">${entries.length} записей</span>`;
+    box.appendChild(cnt);
+  }
+
+  entries.forEach(([name, coord]) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const nm = mkNameEl(name, newName => {
+      if (data[grp][newName]) { showMsg('Уже существует'); return false; }
+      data[grp][newName] = data[grp][name];
+      delete data[grp][name];
+      if (grp === 'defaultCoords') { removeTravelLinks(name); addTravelLinks(newName); }
+      render(); showMsg('Переименовано'); return true;
+    });
+    card.appendChild(nm);
+    card.appendChild(mkCoordInput(coord, c => { data[grp][name] = c; }));
+    card.appendChild(mkDelBtn(() => {
+      if (grp === 'defaultCoords') removeTravelLinks(name);
+      delete data[grp][name];
+      Object.keys(participantOrders).forEach(s => {
+        if (!s.startsWith('_')) participantOrders[s] = participantOrders[s].filter(n => n !== name);
+      });
+      render(); showMsg('Удалено'); updateHeaderSub();
+    }));
+    box.appendChild(card);
+  });
+
+  appendRawBlock(box);
+  document.getElementById('rawJson').value = JSON.stringify(src, null, 2);
+}
+
+// ── participantOrders modals ───────────────
+(function() {
+  const btnP = document.getElementById('selectTypeParticipant');
+  const btnT = document.getElementById('selectTypeTreff');
+  const wrapP = document.getElementById('selectParticipantWrap');
+  const wrapT = document.getElementById('selectTreffWrap');
+  function showParticipant() {
+    wrapP.style.display = ''; wrapT.style.display = 'none';
+    btnP.className = 'mbtn mbtn-confirm'; btnT.className = 'mbtn mbtn-cancel';
+    window._selectMode = 'participant';
+  }
+  function showTreff() {
+    wrapP.style.display = 'none'; wrapT.style.display = '';
+    btnT.className = 'mbtn mbtn-confirm'; btnP.className = 'mbtn mbtn-cancel';
+    window._selectMode = 'treff';
+  }
+  btnP.onclick = showParticipant;
+  btnT.onclick = showTreff;
+  window._showParticipantTab = showParticipant;
+  window._showTreffTab = showTreff;
+})();
+
+function getUsedByDriver(driver) {
+  const used = new Set([driver]);
+  (participantOrders[driver] || []).forEach(item => {
+    if (typeof item === 'string') used.add(item);
+    else if (item?.main) { used.add(item.main); (item.subParticipants||[]).forEach(s => used.add(s)); }
+    else if (item?.treffpunkt) { (item.persons||[]).forEach(s => used.add(s)); }
+  });
+  return used;
+}
+
+function getAllNames() {
+  return Object.keys(data.defaultCoords || {}).sort();
+}
+
+function triggerAddOrder(driver) {
+  const used = getUsedByDriver(driver);
+  const avail = getAllNames().filter(n => !used.has(n));
+  const treffKeys = Object.keys(treffpunkt);
+  const hasTreff = treffKeys.length > 0;
+  if (!avail.length && !hasTreff) { showMsg('Все участники уже добавлены'); return; }
+  const sel = document.getElementById('selectParticipant');
+  sel.innerHTML = '';
+  avail.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  const treffSel = document.getElementById('selectTreff');
+  treffSel.innerHTML = '';
+  treffKeys.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; treffSel.appendChild(o); });
+  document.getElementById('selectTypeBtns').style.display = hasTreff ? 'flex' : 'none';
+  if (!avail.length) window._showTreffTab(); else window._showParticipantTab();
+  window._modalCtx = { mode: 'add', driver };
+  document.getElementById('selectModalTitle').textContent = `Добавить к ${driver}`;
+  openModal('selectModal');
+}
+
+function triggerConvertToGroup(driver, idx, mainName) {
+  const used = getUsedByDriver(driver);
+  const avail = getAllNames().filter(n => !used.has(n));
+  if (!avail.length) { showMsg('Нет доступных участников'); return; }
+  const sel = document.getElementById('selectParticipant');
+  sel.innerHTML = '';
+  avail.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  document.getElementById('selectTypeBtns').style.display = 'none';
+  window._showParticipantTab();
+  window._modalCtx = { mode: 'convertToGroup', driver, idx, mainName };
+  document.getElementById('selectModalTitle').textContent = `Добавить к ${mainName}`;
+  openModal('selectModal');
+}
+
+function triggerAddToGroup(driver, groupIdx, groupMain) {
+  const used = getUsedByDriver(driver);
+  const avail = getAllNames().filter(n => !used.has(n));
+  if (!avail.length) { showMsg('Нет доступных участников'); return; }
+  const sel = document.getElementById('selectParticipant');
+  sel.innerHTML = '';
+  avail.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  document.getElementById('selectTypeBtns').style.display = 'none';
+  window._showParticipantTab();
+  window._modalCtx = { mode: 'addToGroup', driver, groupIdx, groupMain };
+  document.getElementById('selectModalTitle').textContent = `Добавить в группу ${groupMain}`;
+  openModal('selectModal');
+}
+
+function triggerAddTreffPerson(driver, treffIdx, treffName) {
+  const used = getUsedByDriver(driver);
+  const avail = getAllNames().filter(n => !used.has(n));
+  if (!avail.length) { showMsg('Нет доступных участников'); return; }
+  const sel = document.getElementById('selectParticipant');
+  sel.innerHTML = '';
+  avail.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  document.getElementById('selectTypeBtns').style.display = 'none';
+  window._showParticipantTab();
+  window._modalCtx = { mode: 'addTreffPerson', driver, treffIdx, treffName };
+  document.getElementById('selectModalTitle').textContent = `Кто ждёт у ${treffName}`;
+  openModal('selectModal');
+}
+
+document.getElementById('selectConfirm').onclick = () => {
+  const ctx = window._modalCtx;
+  const mode = window._selectMode || 'participant';
+  if (mode === 'treff') {
+    const name = document.getElementById('selectTreff').value;
+    if (!name) return;
+    if (!participantOrders[ctx.driver]) participantOrders[ctx.driver] = [];
+    participantOrders[ctx.driver].push({ treffpunkt: name, persons: [] });
+    participantOrders._lastDriver = ctx.driver;
+    closeModal('selectModal'); render(); showMsg('Место встречи добавлено ✓');
+    return;
+  }
+  const name = document.getElementById('selectParticipant').value;
+  if (!name) return;
+  if (ctx.mode === 'add') {
+    if (!participantOrders[ctx.driver]) participantOrders[ctx.driver] = [];
+    participantOrders[ctx.driver].push(name);
+    participantOrders._lastDriver = ctx.driver;
+  } else if (ctx.mode === 'convertToGroup') {
+    participantOrders[ctx.driver][ctx.idx] = { main: ctx.mainName, subParticipants: [name] };
+  } else if (ctx.mode === 'addToGroup') {
+    const g = participantOrders[ctx.driver][ctx.groupIdx];
+    if (g?.subParticipants) g.subParticipants.push(name);
+  } else if (ctx.mode === 'addTreffPerson') {
+    const t = participantOrders[ctx.driver][ctx.treffIdx];
+    if (t?.persons) t.persons.push(name);
+    else if (t) t.persons = [name];
+  }
+  closeModal('selectModal'); render(); showMsg('Добавлено ✓');
+};
+document.getElementById('selectCancel').onclick = () => closeModal('selectModal');
+
+// ── ADD BUTTON ─────────────────────────────
+document.getElementById('addBtn').onclick = () => {
+  if (currentGroup === 'participantOrders') {
+    const driverSel = document.getElementById('driverSel');
+    if (!driverSel) return;
+    triggerAddOrder(driverSel.value);
+    return;
+  }
+  const modalSel = document.getElementById('modalGroupSel');
+  if ([...modalSel.options].some(o => o.value === currentGroup)) modalSel.value = currentGroup;
+  updateAddPlaceholders();
+  openModal('addModal');
+  setTimeout(() => document.getElementById('newName').focus(), 100);
+};
+
+document.getElementById('modalGroupSel').addEventListener('change', updateAddPlaceholders);
+function updateAddPlaceholders() {
+  const grp = document.getElementById('modalGroupSel').value;
+  const ni = document.getElementById('newName');
+  const ci = document.getElementById('newCoord');
+  const cl = document.getElementById('coordLabel');
+  if (grp === 'travelTimes') { ni.placeholder = 'Имя1-Имя2'; ci.placeholder = 'Время (мин)'; cl.textContent = 'Время (минуты)'; }
+  else if (grp === 'trefftravelTimes') { ni.placeholder = 'Пункт-Имя'; ci.placeholder = 'Время (мин)'; cl.textContent = 'Время (минуты)'; }
+  else { ni.placeholder = 'Имя или ключ'; ci.placeholder = '51.530, 6.850 или ссылка Google Maps'; cl.textContent = 'Координаты (lat, lng)'; }
+}
+
+document.getElementById('addCancel').onclick = () => closeModal('addModal');
+document.getElementById('addConfirm').onclick = async () => {
+  const grp  = document.getElementById('modalGroupSel').value;
+  const name = document.getElementById('newName').value.trim();
+  const val  = document.getElementById('newCoord').value.trim();
+  if (!name) { showMsg('Введите название'); return; }
+  if (grp === 'travelTimes') {
+    if (travelTimes[name] !== undefined) { showMsg('Ключ уже есть'); return; }
+    travelTimes[name] = parseInt(val) || DEFAULT_TT;
+    autoCalcPair(name, false);
+  } else if (grp === 'trefftravelTimes') {
+    if (trefftravelTimes[name] !== undefined) { showMsg('Ключ уже есть'); return; }
+    trefftravelTimes[name] = parseInt(val) || DEFAULT_TT;
+    autoCalcPair(name, true);
+  } else if (grp === 'treffpunkt') {
+    if (treffpunkt[name]) { showMsg('Пункт уже есть'); return; }
+    const c = await parseAnyCoords(val) || { lat: 0, lng: 0 };
+    treffpunkt[name] = c;
+  } else {
+    if (data[grp]?.[name]) { showMsg('Уже существует'); return; }
+    const c = await parseAnyCoords(val) || { lat: 0, lng: 0 };
+    data[grp][name] = c;
+    if (grp === 'defaultCoords') { addTravelLinks(name); updateHeaderSub(); }
+  }
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.group === grp));
+  currentGroup = grp;
+  closeModal('addModal');
+  document.getElementById('newName').value = '';
+  document.getElementById('newCoord').value = '';
+  render(); showMsg('Добавлено ✓');
+};
+
+// ── TOOLBAR BUTTONS ────────────────────────
+document.getElementById('copyBtn').onclick = () => {
+  const body = document.getElementById('rawBody');
+  const btn  = document.getElementById('rawToggle');
+  if (body && !body.classList.contains('open')) {
+    body.classList.add('open');
+    btn && btn.classList.add('open');
+  }
+  const ta = document.getElementById('rawJson');
+  if (!ta) { showMsg('Нет данных'); return; }
+  ta.select();
+  document.execCommand('copy');
+  window.getSelection()?.removeAllRanges();
+  showMsg('Скопировано 📋');
+};
+
+document.getElementById('applyRaw').onclick = () => {
+  const body = document.getElementById('rawBody');
+  const toggleBtn = document.getElementById('rawToggle');
+  if (body && !body.classList.contains('open')) {
+    body.classList.add('open');
+    toggleBtn && toggleBtn.classList.add('open');
+    showMsg('Откройте JSON, отредактируйте и нажмите ✔ снова');
+    return;
+  }
+  try {
+    const el = document.getElementById('rawJson');
+    if (!el) { showMsg('JSON не найден'); return; }
+    const val = el.value.trim();
+    if (!val) { showMsg('JSON пустой'); return; }
+    const grp = currentGroup;
+    const parsed = JSON.parse(val);
+    if (grp === 'travelTimes') travelTimes = parsed;
+    else if (grp === 'trefftravelTimes') trefftravelTimes = parsed;
+    else if (grp === 'treffpunkt') treffpunkt = parsed;
+    else if (grp === 'participantOrders') participantOrders = parsed;
+    else if (grp === 'defaultCoords') data.defaultCoords = parsed;
+    else if (grp === 'stations') data.stations = parsed;
+    updateHeaderSub();
+    render(); showMsg('Применено ✅');
+  } catch(e) { showMsg('Ошибка JSON: ' + e.message.slice(0, 40) + ' ❌', 3000); }
+};
+
+document.getElementById('loadBtn').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      parseStationsText(evt.target.result);
+      setStatus('ok', '✅ Загружено: ' + file.name);
+      document.getElementById('ghUploadBtn').disabled = false;
+      updateHeaderSub(); render(); showMsg('Загружено ✓');
+    } catch { showMsg('Ошибка чтения файла ❌'); }
+  };
+  reader.readAsText(file, 'utf-8');
+  e.target.value = '';
+});
+
+document.getElementById('saveBtn').onclick = () => {
+  const text = buildExportText();
+  const blob = new Blob([text], { type: 'application/javascript;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'stations.js';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showMsg('stations.js скачан 💾');
+};
+
+// ── RECALC MODAL ───────────────────────────
+document.getElementById('recalcBtn').onclick = () => {
+  document.getElementById('recalcProgress').style.display = 'none';
+  document.getElementById('recalcProgress').textContent = '';
+  document.getElementById('recalcStart').disabled = false;
+  openModal('recalcModal');
+};
+document.getElementById('recalcCancel').onclick = () => closeModal('recalcModal');
+
+document.getElementById('recalcStart').onclick = async () => {
+  const target = document.getElementById('recalcTarget').value;
+  const mode   = document.getElementById('recalcMode').value;
+  const prog   = document.getElementById('recalcProgress');
+  prog.style.display = 'block';
+  const pairs = [];
+  if (target === 'travelTimes' || target === 'both') {
+    Object.keys(travelTimes).forEach(key => {
+      if (mode === 'missing' && travelTimes[key] !== DEFAULT_TT) return;
+      pairs.push({ key, src: travelTimes, isTreff: false });
+    });
+  }
+  if (target === 'trefftravelTimes' || target === 'both') {
+    Object.keys(trefftravelTimes).forEach(key => {
+      if (mode === 'missing' && trefftravelTimes[key] !== DEFAULT_TT) return;
+      pairs.push({ key, src: trefftravelTimes, isTreff: true });
+    });
+  }
+  if (!pairs.length) { prog.textContent = 'ℹ️ Нет пар для пересчёта'; return; }
+  const startBtn = document.getElementById('recalcStart');
+  startBtn.disabled = true;
+  let done = 0, errors = 0;
+  for (const { key, src, isTreff } of pairs) {
+    prog.textContent = `⏳ ${done + errors + 1} / ${pairs.length}  —  ${key}`;
+    try {
+      const [a, b] = splitPairKey(key, isTreff);
+      const cA = isTreff ? treffpunkt[a] : getCoordsFor(a);
+      const cB = getCoordsFor(b);
+      if (!cA || !cB) throw new Error(`нет координат: ${!cA ? a : b}`);
+      src[key] = await fetchTravelTime(cA.lat, cA.lng, cB.lat, cB.lng);
+      setAutoFlag(key, isTreff, true);
+      done++;
+    } catch(e) { errors++; console.warn(`${key}: ${e.message}`); }
+    await new Promise(r => setTimeout(r, 300));
+  }
+  prog.textContent = `✅ Готово: обновлено ${done}, ошибок ${errors}`;
+  startBtn.disabled = false;
+  render(); showMsg(`Пересчитано ${done} пар`, 3000);
+};
+
+// ── EXPORT ─────────────────────────────────
+function buildExportText() {
+  const L = (o, fn) => Object.entries(o).map(fn).join(',\n');
+  return `// реестр имен
+const defaultCoords = {
+${L(data.defaultCoords, ([n,c]) => `  '${n}': {lat: ${c.lat}, lng: ${c.lng}}`)}
+};
+
+// реестр станций
+this.stations = {
+${L(data.stations, ([n,c]) => `  '${n}': {lat: ${c.lat}, lng: ${c.lng}}`)}
+};
+
+// Время в пути между участниками
+this.travelTimes = {
+${L(travelTimes, ([p,t]) => `  '${p}': ${t}`)}
+};
+
+// Пункты встречи (Treffpunkt)
+this.treffpunkt = {
+${L(treffpunkt, ([n,c]) => `  '${n}': {lat: ${c.lat}, lng: ${c.lng}}`)}
+};
+
+// Время в пути от пункта встречи до каждого участника
+this.trefftravelTimes = {
+${L(trefftravelTimes, ([p,t]) => `  '${p}': ${t}`)}
+};
+
+// Приоритетные списки остановок
+this.participantOrders = {
+${Object.keys(participantOrders).filter(k => !k.startsWith('_')).map(s => {
+  const arr = (participantOrders[s] || []).map(item => {
+    if (typeof item === 'string') return `"${item}"`;
+    if (item?.treffpunkt) return `{"treffpunkt":"${item.treffpunkt}","persons":${JSON.stringify(item.persons || [])}}`;
+    return `{"main":"${item.main}","subParticipants":${JSON.stringify(item.subParticipants || [])}}`;
+  });
+  return `  '${s}': [${arr.join(',')}]`;
+}).join(',\n')}
+};`;
+}
+
+// ── GITHUB ─────────────────────────────────
+document.getElementById('ghUploadBtn').onclick = () => {
+  const saved = localStorage.ghToken;
+  document.getElementById('ghTokenInp').value = saved || '';
+  document.getElementById('tokenHint').textContent = saved ? '🔑 Токен сохранён' : '';
+  openModal('ghModal');
+  if (!saved) document.getElementById('ghTokenInp').focus();
+};
+document.getElementById('ghCancelBtn').onclick = () => closeModal('ghModal');
+
+document.getElementById('ghSendStationsBtn').onclick = async () => {
+  const token = document.getElementById('ghTokenInp').value.trim();
+  if (!token) { showMsg('Введите токен'); return; }
+  await uploadToGitHub(token, GH_FILE, buildExportText());
+};
+document.getElementById('ghSendAnyBtn').onclick = async () => {
+  const token = document.getElementById('ghTokenInp').value.trim();
+  if (!token) { showMsg('Введите токен'); return; }
+  const fi = document.getElementById('ghAnyFile');
+  const ni = document.getElementById('ghAnyName');
+  if (!fi.files.length) { showMsg('Выберите файл'); return; }
+  const file = fi.files[0];
+  const path = ni.value.trim() || file.name;
+  await uploadToGitHub(token, path, await file.text());
+};
+
+async function uploadToGitHub(token, path, text) {
+  localStorage.ghToken = token;
+  showMsg('Загрузка на GitHub…', 5000);
+  const base64 = btoa(unescape(encodeURIComponent(text)));
+  let sha;
+  try {
+    const h = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}`, {
+      headers: { Authorization: `token ${token}` }
+    });
+    if (h.ok) sha = (await h.json()).sha;
+  } catch {}
+  const resp = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}`, {
+    method: 'PUT',
+    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: `web-update ${path}`, content: base64, sha })
+  });
+  closeModal('ghModal');
+  if (resp.ok) {
+    setStatus('ok', `✅ ${path} загружен на GitHub`);
+    showMsg(`${path} загружен ✅`, 2500);
+  } else {
+    const err = await resp.json();
+    showMsg('Ошибка: ' + err.message, 4000);
+  }
+}
+
+// ── START ──────────────────────────────────
+loadFromGitHub();
+</script>
+</body>
+</html>
