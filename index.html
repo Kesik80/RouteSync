@@ -1945,7 +1945,7 @@ body.light .passenger-link-row { background: rgba(0,0,0,0.04); }
 
   <!-- ACTIONS ROW 2: Live + Features -->
   <div class="actions-grid" style="margin-top:8px;">
-    <button class="btn btn-live full-width" id="btnLiveStart">
+    <button class="btn btn-live full-width" id="btnLiveStart" onclick="RS.liveActive ? RS.endLive() : RS.initLive()">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
       Старт маршрута
     </button>
@@ -1953,19 +1953,19 @@ body.light .passenger-link-row { background: rgba(0,0,0,0.04); }
 
   <!-- FEATURE TOOLBAR -->
   <div class="feature-toolbar">
-    <button class="feat-btn" id="btnTimeline" title="Расписание">
+    <button class="feat-btn" id="btnTimeline" title="Расписание" onclick="RS.toggleTimeline()">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
       Расписание
     </button>
-    <button class="feat-btn" id="btnMapPanel" title="Карта">
+    <button class="feat-btn" id="btnMapPanel" title="Карта" onclick="RS.toggleMapPanel()">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5z"/></svg>
       Карта
     </button>
-    <button class="feat-btn" id="btnPassengers" title="Ссылки пассажирам">
+    <button class="feat-btn" id="btnPassengers" title="Ссылки пассажирам" onclick="RS.togglePassengerPanel()">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
       Пассажиры
     </button>
-    <button class="feat-btn" id="btnReminder" title="Напоминание">
+    <button class="feat-btn" id="btnReminder" title="Напоминание" onclick="RS.toggleReminder()">
       🔔
       Напомни
     </button>
@@ -3886,697 +3886,494 @@ console.log('RouteSync ready');
 </script>
 <!-- ════════ NEW FEATURES JS ════════ -->
 <script>
-/* ════════════════════════════════════════════════════════
-   ROUTESYNC — NEW FEATURES
-   1. Live Mode (geolocation countdown)
-   2. Timeline View
-   3. Mini Map Panel
-   4. Passenger Links + View
-   5. Push Notifications / Reminders
-   ════════════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════════
+//  ROUTESYNC — FEATURES (timeline, map, passengers, live)
+//  Простая, надёжная реализация без сложных init-цепочек
+// ═══════════════════════════════════════════════════════
 
-const RS = {
-
-  // ── state ─────────────────────────────────────────────
-  liveActive: false,
-  livePaused: false,
-  liveStartedAt: null,
-  liveCurrentStop: 0,       // index into liveStops
-  liveStops: [],            // [{name, scheduledTime(Date), arrived:false}]
-  liveTimer: null,
-  liveElapsedTimer: null,
-  liveCurrentPos: null,
-
-  reminderTimers: [],
-  notifPermission: 'default',
-
+var RS = {
   timelineVisible: false,
   mapVisible: false,
   passengersVisible: false,
   reminderVisible: false,
+  liveActive: false,
+  liveTimer: null,
+  liveStops: [],
+  passengerCountdownTimer: null,
+  activeReminderTimers: [],
 
-  get app() { return window._appInstance; },
+  app: function() { return window._appInstance || null; },
 
-  // ── helpers ───────────────────────────────────────────
-  fmt2(n) { return String(Math.abs(n)).padStart(2,'0'); },
+  // ── HELPERS ──────────────────────────────────────────
+  fmt2: function(n) { return String(Math.abs(n)).padStart(2,'0'); },
 
-  fmtCountdown(totalSeconds) {
-    const sign = totalSeconds < 0 ? '-' : '';
-    const abs = Math.abs(Math.round(totalSeconds));
-    const m = Math.floor(abs / 60);
-    const s = abs % 60;
-    return `${sign}${m}:${this.fmt2(s)}`;
+  fmtTime: function(d) {
+    if (!(d instanceof Date) || isNaN(d)) return '--:--';
+    return this.fmt2(d.getHours()) + ':' + this.fmt2(d.getMinutes());
   },
 
-  fmtTime(date) {
-    return date.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+  fmtCountdown: function(diffMs) {
+    if (diffMs <= 0) return '00:00';
+    var total = Math.floor(diffMs / 1000);
+    var m = Math.floor(total / 60);
+    var s = total % 60;
+    return this.fmt2(m) + ':' + this.fmt2(s);
   },
 
-  // ── 1. LIVE MODE ──────────────────────────────────────
-  initLive() {
-    const app = this.app;
-    if (!app) return;
+  toast: function(msg) {
+    var app = this.app();
+    if (app && app.showToast) { app.showToast(msg); return; }
+    // Fallback toast
+    var t = document.getElementById('rs-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'rs-toast';
+      t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a28;color:#f0f0f8;border:1px solid rgba(255,255,255,0.15);border-radius:100px;padding:8px 18px;font-size:14px;z-index:99999;transition:opacity 0.3s;pointer-events:none;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function() { t.style.opacity = '0'; }, 2500);
+  },
 
-    if (!app.machineStop.arrivalTime) {
-      app.showToast('⚠️ Сначала задайте время прибытия (🕒)');
+  // ── 1. TIMELINE ──────────────────────────────────────
+  toggleTimeline: function() {
+    this.timelineVisible = !this.timelineVisible;
+    var view = document.getElementById('timelineView');
+    var btn = document.getElementById('btnTimeline');
+    if (view) {
+      if (this.timelineVisible) {
+        view.classList.add('visible');
+      } else {
+        view.classList.remove('visible');
+      }
+    }
+    if (btn) {
+      if (this.timelineVisible) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+    if (this.timelineVisible) {
+      this.renderTimeline();
+    }
+  },
+
+  renderTimeline: function() {
+    var container = document.getElementById('timelineRows');
+    if (!container) return;
+    var app = this.app();
+
+    if (!app) {
+      container.innerHTML = '<div style="padding:16px;text-align:center;color:rgba(240,240,248,0.4);font-size:14px;">Приложение загружается…</div>';
       return;
     }
 
-    // Build live stops from calculated times
-    const arrivalStr = app.machineStop.arrivalTime;
-    const valid = app.participants.filter(p => p.name);
-    if (valid.length === 0) {
-      app.showToast('⚠️ Нет участников в маршруте');
+    var arrivalTime = app.machineStop && app.machineStop.arrivalTime;
+    if (!arrivalTime) {
+      container.innerHTML = '<div style="padding:16px;text-align:center;color:rgba(240,240,248,0.4);font-size:14px;">⏰ Задайте время прибытия (🕒 у Машины)</div>';
       return;
     }
-    const total = valid.reduce((s,p) => s + p.time, 0) + app.machineStop.time;
 
-    // Parse arrival as today's time
-    const now = new Date();
-    const arrival = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const [ah, am] = arrivalStr.split(':').map(Number);
-    arrival.setHours(ah, am, 0, 0);
-    const startTime = new Date(arrival.getTime() - total * 60000);
+    var valid = (app.participants || []).filter(function(p) { return p.name; });
+    if (!valid.length) {
+      container.innerHTML = '<div style="padding:16px;text-align:center;color:rgba(240,240,248,0.4);font-size:14px;">Нет участников в маршруте</div>';
+      return;
+    }
 
-    this.liveStops = [];
-    let cur = new Date(startTime);
+    var total = valid.reduce(function(s, p) { return s + (p.time || 0); }, 0) + (app.machineStop.time || 0);
+    var arrival = new Date();
+    var parts = arrivalTime.split(':');
+    arrival.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
+    var startTime = new Date(arrival.getTime() - total * 60000);
 
-    valid.forEach(p => {
-      cur = new Date(cur.getTime() + p.time * 60000);
-      this.liveStops.push({
-        name: p.name,
-        scheduledTime: new Date(cur),
-        arrived: false,
-        lat: p.lat,
-        lng: p.lng
+    var html = '';
+    // Start dot
+    html += '<div class="tl-row"><div class="tl-dot tl-dot-start"></div><div class="tl-info"><div class="tl-time">' + this.fmtTime(startTime) + '</div><div class="tl-name">🚗 Отправление</div></div></div>';
+
+    var cur = new Date(startTime);
+    var self = this;
+    valid.forEach(function(p) {
+      cur = new Date(cur.getTime() + (p.time || 0) * 60000);
+      var names = [p.name];
+      if (p.subParticipants) names = names.concat(p.subParticipants);
+      if (p.treffpunktPersons) names = names.concat(p.treffpunktPersons);
+      html += '<div class="tl-row"><div class="tl-line"></div><div class="tl-dot"></div><div class="tl-info"><div class="tl-time">' + self.fmtTime(cur) + '</div><div class="tl-name">' + names.join(', ') + '</div></div></div>';
+    });
+
+    // Arrival
+    html += '<div class="tl-row"><div class="tl-line"></div><div class="tl-dot tl-dot-end"></div><div class="tl-info"><div class="tl-time">' + self.fmtTime(arrival) + '</div><div class="tl-name">🏭 Прибытие</div></div></div>';
+
+    container.innerHTML = html;
+  },
+
+  // ── 2. MAP ───────────────────────────────────────────
+  toggleMapPanel: function() {
+    this.mapVisible = !this.mapVisible;
+    var panel = document.getElementById('mapPanel');
+    var btn = document.getElementById('btnMapPanel');
+    if (panel) {
+      if (this.mapVisible) panel.classList.add('visible');
+      else panel.classList.remove('visible');
+    }
+    if (btn) {
+      if (this.mapVisible) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+    if (this.mapVisible) this.loadMap();
+  },
+
+  loadMap: function() {
+    var frame = document.getElementById('routeMapFrame');
+    if (!frame) return;
+    var app = this.app();
+
+    var dest = '';
+    var origin = '';
+    var waypts = [];
+
+    if (app) {
+      if (app.machineStop && app.machineStop.lat) {
+        dest = app.machineStop.lat + ',' + app.machineStop.lng;
+      }
+      if (app.startPointCoords && app.startPointCoords.lat) {
+        origin = app.startPointCoords.lat + ',' + app.startPointCoords.lng;
+      }
+      var validP = (app.participants || []).filter(function(p) { return p.name && p.lat && p.lng; });
+      waypts = validP.map(function(p) { return p.lat + ',' + p.lng; });
+    }
+
+    if (!dest && !origin && !waypts.length) {
+      frame.srcdoc = '<div style="display:flex;align-items:center;justify-content:center;height:240px;background:#12121e;color:rgba(240,240,248,0.35);font-family:sans-serif;font-size:13px;text-align:center;padding:20px;">📍 Добавьте координаты участникам<br>чтобы увидеть маршрут</div>';
+      return;
+    }
+
+    var q = dest || origin || waypts[0];
+    var url;
+    if (origin && dest) {
+      url = 'https://maps.google.com/maps?saddr=' + encodeURIComponent(origin) + '&daddr=' + encodeURIComponent(dest) + '&output=embed';
+    } else {
+      url = 'https://maps.google.com/maps?q=' + encodeURIComponent(q) + '&z=12&output=embed';
+    }
+    frame.src = url;
+  },
+
+  // ── 3. PASSENGERS ────────────────────────────────────
+  togglePassengerPanel: function() {
+    this.passengersVisible = !this.passengersVisible;
+    var panel = document.getElementById('passengerPanel');
+    var btn = document.getElementById('btnPassengers');
+    if (panel) {
+      if (this.passengersVisible) panel.classList.add('visible');
+      else panel.classList.remove('visible');
+    }
+    if (btn) {
+      if (this.passengersVisible) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+    if (this.passengersVisible) this.renderPassengers();
+  },
+
+  renderPassengers: function() {
+    var container = document.getElementById('passengerLinks');
+    if (!container) return;
+    var app = this.app();
+
+    if (!app) {
+      container.innerHTML = '<div style="padding:12px;text-align:center;color:rgba(240,240,248,0.4);font-size:13px;">Загрузка…</div>';
+      return;
+    }
+
+    var valid = (app.participants || []).filter(function(p) { return p.name; });
+    var arrivalTime = app.machineStop && app.machineStop.arrivalTime;
+
+    if (!valid.length) {
+      container.innerHTML = '<div style="padding:12px;text-align:center;color:rgba(240,240,248,0.4);font-size:13px;">Нет участников</div>';
+      return;
+    }
+    if (!arrivalTime) {
+      container.innerHTML = '<div style="padding:12px;text-align:center;color:rgba(240,240,248,0.4);font-size:13px;">⏰ Задайте время прибытия (🕒)</div>';
+      return;
+    }
+
+    var total = valid.reduce(function(s, p) { return s + (p.time || 0); }, 0) + (app.machineStop.time || 0);
+    var arrival = new Date();
+    var parts = arrivalTime.split(':');
+    arrival.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
+    var startTime = new Date(arrival.getTime() - total * 60000);
+    var cur = new Date(startTime);
+    var self = this;
+    var html = '';
+
+    valid.forEach(function(p, i) {
+      cur = new Date(cur.getTime() + (p.time || 0) * 60000);
+      var t = self.fmtTime(cur);
+      var names = [p.name];
+      if (p.subParticipants) names = names.concat(p.subParticipants);
+      if (p.treffpunktPersons) names = names.concat(p.treffpunktPersons);
+      names.forEach(function(name) {
+        var pData = btoa(JSON.stringify({ passenger: name, driver: app.startPoint || 'Водитель', arrivalTime: t }));
+        var pUrl = location.origin + location.pathname + '?pv=' + pData;
+        html += '<div class="passenger-link-row">' +
+          '<div class="passenger-link-name">' + name + '</div>' +
+          '<div class="passenger-link-time">' + t + '</div>' +
+          '<button class="passenger-link-copy" onclick="RS.openPassengerView(\'' + pData + '\')" title="Открыть">👁</button>' +
+          '<button class="passenger-link-copy" onclick="RS.copyLink(\'' + pUrl + '\',\'' + name + '\')" title="Скопировать ссылку">🔗</button>' +
+          '</div>';
       });
     });
-    // machine stop
-    const machineTime = new Date(cur.getTime() + app.machineStop.time * 60000);
-    this.liveStops.push({
-      name: app.machineStop.name,
-      scheduledTime: machineTime,
-      arrived: false,
-      lat: app.machineStop.lat,
-      lng: app.machineStop.lng,
-      isMachine: true
-    });
 
-    this.liveActive = true;
-    this.livePaused = false;
-    this.liveCurrentStop = 0;
-    this.liveStartedAt = new Date();
-
-    document.getElementById('liveBanner').classList.add('active');
-    document.getElementById('btnLiveStart').innerHTML = `
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
-      Live активен
-    `;
-    document.getElementById('btnLiveStart').classList.add('live-active');
-    document.querySelector('#btnLiveStart').style.cssText = 'background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);';
-
-    // Start geolocation watch
-    if (navigator.geolocation) {
-      this.geoWatchId = navigator.geolocation.watchPosition(
-        pos => { this.liveCurrentPos = pos.coords; },
-        null,
-        { enableHighAccuracy: true, maximumAge: 15000 }
-      );
-    }
-
-    this.startLiveTimers();
-    this.renderLiveStops();
-    this.updateLiveCountdown();
-
-    app.showToast('🚗 Маршрут запущен!');
-
-    // Notify passengers
-    this.notifyPassengers();
+    container.innerHTML = html || '<div style="padding:12px;text-align:center;color:rgba(240,240,248,0.4);font-size:13px;">Нет данных</div>';
   },
 
-  startLiveTimers() {
-    clearInterval(this.liveTimer);
-    clearInterval(this.liveElapsedTimer);
+  copyLink: function(url, name) {
+    var self = this;
+    navigator.clipboard.writeText(url)
+      .then(function() { self.toast('🔗 Ссылка скопирована: ' + name); })
+      .catch(function() { self.toast('⚠️ Не удалось скопировать'); });
+  },
 
-    this.liveTimer = setInterval(() => {
-      if (!this.livePaused) this.updateLiveCountdown();
-    }, 1000);
+  openPassengerView: function(encoded) {
+    try {
+      var data = JSON.parse(atob(encoded));
+      var modal = document.getElementById('passengerViewModal');
+      if (!modal) return;
+      modal.classList.add('show');
+      var nameEl = document.getElementById('pvPassengerName');
+      var driverEl = document.getElementById('pvDriverName');
+      var arrEl = document.getElementById('pvArrivalTime');
+      var cdEl = document.getElementById('pvCountdown');
+      if (nameEl) nameEl.textContent = data.passenger || '';
+      if (driverEl) driverEl.textContent = data.driver || '';
+      if (arrEl) arrEl.textContent = data.arrivalTime || '';
 
-    this.liveElapsedTimer = setInterval(() => {
-      if (!this.livePaused && this.liveStartedAt) {
-        const elapsed = Math.floor((Date.now() - this.liveStartedAt) / 1000);
-        const m = Math.floor(elapsed / 60);
-        const s = elapsed % 60;
-        const el = document.getElementById('liveElapsed');
-        if (el) el.textContent = `${this.fmt2(m)}:${this.fmt2(s)}`;
+      clearInterval(this.passengerCountdownTimer);
+      if (data.arrivalTime && cdEl) {
+        var self = this;
+        var tick = function() {
+          var now = new Date();
+          var arr = new Date();
+          var p = data.arrivalTime.split(':');
+          arr.setHours(parseInt(p[0]), parseInt(p[1]), 0, 0);
+          var diff = arr - now;
+          if (diff < 0) { cdEl.textContent = 'Прибыли!'; return; }
+          cdEl.textContent = self.fmtCountdown(diff);
+        };
+        tick();
+        this.passengerCountdownTimer = setInterval(tick, 1000);
       }
-    }, 1000);
+    } catch(e) { this.toast('Ошибка открытия'); }
   },
 
-  updateLiveCountdown() {
-    if (!this.liveActive) return;
-    const now = new Date();
+  // ── 4. REMINDER ──────────────────────────────────────
+  toggleReminder: function() {
+    var self = this;
+    this.reminderVisible = !this.reminderVisible;
+    var panel = document.getElementById('reminderSetup');
+    var btn = document.getElementById('btnReminder');
+    if (panel) {
+      if (this.reminderVisible) panel.classList.add('visible');
+      else panel.classList.remove('visible');
+    }
+    if (btn) {
+      if (this.reminderVisible) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+    if (this.reminderVisible && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  },
 
-    // Find current stop (first not arrived)
-    let stopIdx = this.liveStops.findIndex(s => !s.arrived);
-    if (stopIdx === -1) {
-      // All arrived
-      this.endLive();
+  setReminder: function(minutesBefore) {
+    var app = this.app();
+    var arrivalTime = app && app.machineStop && app.machineStop.arrivalTime;
+    if (!arrivalTime) {
+      this.toast('⚠️ Задайте время прибытия');
       return;
     }
 
-    const stop = this.liveStops[stopIdx];
-    const diffSec = (stop.scheduledTime - now) / 1000;
+    var arrival = new Date();
+    var parts = arrivalTime.split(':');
+    arrival.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
 
-    const nameEl = document.getElementById('liveNextName');
-    const countEl = document.getElementById('liveCountdown');
-    const statusEl = document.getElementById('liveStatusText');
+    var total = 0;
+    if (app && app.participants) {
+      total = app.participants.filter(function(p) { return p.name; }).reduce(function(s, p) { return s + (p.time || 0); }, 0);
+    }
+    if (app && app.machineStop) total += (app.machineStop.time || 0);
 
-    if (nameEl) nameEl.textContent = stop.name;
+    var departure = new Date(arrival.getTime() - total * 60000);
+    var fireAt = new Date(departure.getTime() - minutesBefore * 60000);
+    var msUntil = fireAt - Date.now();
 
-    if (countEl) {
-      countEl.textContent = this.fmtCountdown(diffSec);
-      countEl.className = 'live-countdown';
-      if (diffSec > 60) countEl.classList.add('on-time');
-      else if (diffSec < -30) countEl.classList.add('late');
+    if (msUntil <= 0) {
+      this.toast('⚠️ Это время уже прошло');
+      return;
     }
 
-    if (statusEl) {
-      if (diffSec > 60) statusEl.textContent = `По графику — прибытие в ${this.fmtTime(stop.scheduledTime)}`;
-      else if (diffSec >= -30) statusEl.textContent = `📍 Уже рядом!`;
-      else statusEl.textContent = `⚠️ Опаздываем на ${Math.abs(Math.round(diffSec/60))} мин`;
+    // Clear previous
+    this.activeReminderTimers.forEach(function(t) { clearTimeout(t); });
+    this.activeReminderTimers = [];
+
+    var self = this;
+    var msg = 'Выезд через ' + minutesBefore + ' мин (' + self.fmtTime(departure) + ')';
+
+    // In-app banner
+    var t1 = setTimeout(function() {
+      var notifPanel = document.getElementById('notifPanel');
+      var notifText = document.getElementById('notifText');
+      if (notifPanel && notifText) {
+        notifText.textContent = msg;
+        notifPanel.classList.add('visible');
+        setTimeout(function() { notifPanel.classList.remove('visible'); }, 30000);
+      }
+      self.toast('🔔 ' + msg);
+    }, msUntil);
+    this.activeReminderTimers.push(t1);
+
+    // Browser notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      var t2 = setTimeout(function() {
+        new Notification('RouteSync', { body: msg, icon: '/favicon.ico' });
+      }, msUntil);
+      this.activeReminderTimers.push(t2);
     }
 
-    this.liveCurrentStop = stopIdx;
-    this.renderLiveStops();
+    // Update chips UI
+    document.querySelectorAll('.reminder-chip').forEach(function(c) { c.classList.remove('active'); });
+    var chip = document.querySelector('.reminder-chip[data-min="' + minutesBefore + '"]');
+    if (chip) chip.classList.add('active');
+
+    this.toast('⏰ Напомним за ' + minutesBefore + ' мин до выезда');
   },
 
-  renderLiveStops() {
-    const container = document.getElementById('liveStopsList');
-    if (!container) return;
-    container.innerHTML = '';
-    this.liveStops.forEach((stop, i) => {
-      const div = document.createElement('div');
-      div.className = 'live-stop-row' +
-        (stop.arrived ? ' done' : '') +
-        (i === this.liveCurrentStop && !stop.arrived ? ' current' : '');
+  // ── 5. LIVE ──────────────────────────────────────────
+  initLive: function() {
+    var app = this.app();
+    if (!app) { this.toast('Приложение не готово'); return; }
+    if (!app.machineStop || !app.machineStop.arrivalTime) {
+      this.toast('⚠️ Задайте время прибытия');
+      return;
+    }
 
-      const icon = stop.arrived ? '✓' : (i === this.liveCurrentStop && !stop.arrived ? '▶' : String(i + 1));
-      div.innerHTML = `
-        <div class="live-stop-icon">${icon}</div>
-        <div class="live-stop-name">${stop.name}</div>
-        <div class="live-stop-time">${this.fmtTime(stop.scheduledTime)}</div>
-        ${!stop.arrived && !stop.isMachine ? `<button onclick="RS.markArrived(${i})" style="background:var(--green-2);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:var(--green);font-size:0.72rem;padding:4px 8px;cursor:pointer;font-family:var(--font-main);">✓ Забрал</button>` : ''}
-      `;
+    var valid = (app.participants || []).filter(function(p) { return p.name; });
+    if (!valid.length) { this.toast('⚠️ Нет участников'); return; }
+
+    var arrivalStr = app.machineStop.arrivalTime;
+    var total = valid.reduce(function(s, p) { return s + (p.time || 0); }, 0) + (app.machineStop.time || 0);
+    var arrival = new Date();
+    var p = arrivalStr.split(':');
+    arrival.setHours(parseInt(p[0]), parseInt(p[1]), 0, 0);
+    var startTime = new Date(arrival.getTime() - total * 60000);
+
+    this.liveStops = [];
+    var cur = new Date(startTime);
+    valid.forEach(function(part) {
+      cur = new Date(cur.getTime() + (part.time || 0) * 60000);
+      this.liveStops.push({ name: part.name, scheduledTime: new Date(cur), arrived: false });
+    }.bind(this));
+    this.liveStops.push({ name: '🏭 Машина', scheduledTime: new Date(arrival), arrived: false });
+
+    this.liveActive = true;
+    this.liveStartedAt = Date.now();
+
+    var banner = document.getElementById('liveBanner');
+    var startBtn = document.getElementById('btnLiveStart');
+    if (banner) banner.classList.add('active');
+    if (startBtn) {
+      startBtn.classList.add('live-active');
+      startBtn.innerHTML = '<span>🔴</span><span>Маршрут активен — нажмите для завершения</span>';
+    }
+
+    this.renderLiveStops();
+
+    var self = this;
+    this.liveTimer = setInterval(function() { self.updateLiveCountdown(); }, 1000);
+  },
+
+  endLive: function() {
+    this.liveActive = false;
+    clearInterval(this.liveTimer);
+    var banner = document.getElementById('liveBanner');
+    var startBtn = document.getElementById('btnLiveStart');
+    if (banner) banner.classList.remove('active');
+    if (startBtn) {
+      startBtn.classList.remove('live-active');
+      startBtn.innerHTML = '<span>🚗</span><span>Старт маршрута</span>';
+    }
+    this.toast('🏁 Маршрут завершён!');
+  },
+
+  updateLiveCountdown: function() {
+    var now = new Date();
+    var next = null;
+    for (var i = 0; i < this.liveStops.length; i++) {
+      if (!this.liveStops[i].arrived) { next = this.liveStops[i]; break; }
+    }
+    var cdEl = document.getElementById('liveNextCountdown');
+    var nextEl = document.getElementById('liveNextName');
+    var elapsedEl = document.getElementById('liveElapsed');
+
+    if (elapsedEl) {
+      var elapsed = Math.floor((Date.now() - this.liveStartedAt) / 1000);
+      elapsedEl.textContent = this.fmt2(Math.floor(elapsed/60)) + ':' + this.fmt2(elapsed%60);
+    }
+
+    if (next && cdEl) {
+      var diff = next.scheduledTime - now;
+      cdEl.textContent = this.fmtCountdown(Math.abs(diff));
+      cdEl.className = 'live-countdown ' + (diff > 120000 ? 'on-time' : diff > 0 ? 'close' : 'late');
+      if (nextEl) nextEl.textContent = next.name;
+    }
+  },
+
+  renderLiveStops: function() {
+    var container = document.getElementById('liveStopsList');
+    if (!container) return;
+    var self = this;
+    container.innerHTML = '';
+    this.liveStops.forEach(function(stop, i) {
+      var div = document.createElement('div');
+      div.className = 'live-stop-item' + (stop.arrived ? ' arrived' : '');
+      div.innerHTML = '<span class="live-stop-status">' + (stop.arrived ? '✓' : (i+1)) + '</span>' +
+        '<span class="live-stop-name">' + stop.name + '</span>' +
+        '<span class="live-stop-time">' + self.fmtTime(stop.scheduledTime) + '</span>' +
+        (!stop.arrived ? '<button class="live-arrived-btn" onclick="RS.markArrived(' + i + ')">✓ Забрал</button>' : '');
       container.appendChild(div);
     });
   },
 
-  markArrived(idx) {
+  markArrived: function(idx) {
     if (this.liveStops[idx]) {
       this.liveStops[idx].arrived = true;
       this.renderLiveStops();
-      this.updateLiveCountdown();
-      const name = this.liveStops[idx].name;
-      this.app.showToast(`✅ ${name} — посадка`);
+      var remaining = this.liveStops.filter(function(s) { return !s.arrived; });
+      if (!remaining.length) this.endLive();
     }
-  },
-
-  pauseLive() {
-    this.livePaused = !this.livePaused;
-    const btn = document.getElementById('livePauseBtn');
-    if (btn) btn.textContent = this.livePaused ? '▶ Продолжить' : '⏸ Пауза';
-  },
-
-  endLive() {
-    this.liveActive = false;
-    this.livePaused = false;
-    clearInterval(this.liveTimer);
-    clearInterval(this.liveElapsedTimer);
-    if (this.geoWatchId) navigator.geolocation.clearWatch(this.geoWatchId);
-
-    document.getElementById('liveBanner').classList.remove('active');
-    const startBtn = document.getElementById('btnLiveStart');
-    if (startBtn) {
-      startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> Старт маршрута`;
-      startBtn.style.cssText = '';
-      startBtn.classList.remove('live-active');
-    }
-
-    if (this.app) this.app.showToast('🏁 Маршрут завершён!');
-  },
-
-  // ── 2. TIMELINE VIEW ──────────────────────────────────
-  toggleTimeline() {
-    const app = this.app;
-    this.timelineVisible = !this.timelineVisible;
-    const view = document.getElementById('timelineView');
-    const btn = document.getElementById('btnTimeline');
-    if (view) view.classList.toggle('visible', this.timelineVisible);
-    if (btn) btn.classList.toggle('active', this.timelineVisible);
-    if (this.timelineVisible) {
-      if (!app || !app.machineStop || !app.machineStop.arrivalTime) {
-        const container = document.getElementById('timelineRows');
-        if (container) container.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:0.85rem;text-align:center;">⏰ Задайте время прибытия (кнопка 🕒 у конечной точки)</div>';
-      } else {
-        this.renderTimeline();
-      }
-    }
-  },
-
-  renderTimeline() {
-    const app = this.app;
-    const container = document.getElementById('timelineRows');
-    if (!container || !app) return;
-
-    container.innerHTML = '';
-
-    const valid = app.participants.filter(p => p.name);
-    const total = valid.reduce((s,p) => s + p.time, 0) + app.machineStop.time;
-    const startTime = (() => { const _d=new Date(), [_h,_m]=app.machineStop.arrivalTime.split(':').map(Number); _d.setHours(_h,_m,0,0); return _d; })();
-    startTime.setMinutes(startTime.getMinutes() - total);
-
-    const rows = [];
-
-    // Start row
-    rows.push({ time: new Date(startTime), label: 'Отправление', type: 'start', duration: null });
-
-    let cur = new Date(startTime);
-    valid.forEach(p => {
-      cur = new Date(cur.getTime() + p.time * 60000);
-      let label = p.name;
-      if (p.subParticipants?.length) label += ` + ${p.subParticipants.join(', ')}`;
-      rows.push({ time: new Date(cur), label, type: 'stop', duration: p.time });
-    });
-
-    const machineTime = (() => { const _d=new Date(), [_h,_m]=app.machineStop.arrivalTime.split(':').map(Number); _d.setHours(_h,_m,0,0); return _d; })();
-    rows.push({ time: machineTime, label: app.machineStop.name, type: 'machine', duration: app.machineStop.time });
-
-    rows.forEach((row, i) => {
-      const isLast = i === rows.length - 1;
-      const div = document.createElement('div');
-      div.className = 'tl-row';
-
-      const dotClass = row.type === 'start' ? 'accent' : row.type === 'machine' ? 'green' : '';
-      const nameClass = row.type === 'start' ? 'start-label' : row.type === 'machine' ? 'machine-label' : '';
-      const timeClass = row.type === 'start' ? 'start-time' : row.type === 'machine' ? 'end-time' : '';
-
-      div.innerHTML = `
-        <div class="tl-time-col">
-          <div class="tl-time ${timeClass}">${this.fmtTime(row.time)}</div>
-        </div>
-        <div class="tl-line-col">
-          <div class="tl-dot ${dotClass}"></div>
-          ${!isLast ? '<div class="tl-connector"></div>' : ''}
-        </div>
-        <div class="tl-content-col">
-          <div class="tl-name ${nameClass}">${row.label}</div>
-          ${row.duration ? `<div class="tl-duration">+${row.duration} мин в пути</div>` : ''}
-        </div>
-      `;
-      container.appendChild(div);
-    });
-  },
-
-  // ── 3. MAP PANEL ──────────────────────────────────────
-  toggleMapPanel() {
-    this.mapVisible = !this.mapVisible;
-    const panel = document.getElementById('mapPanel');
-    const btn = document.getElementById('btnMapPanel');
-    if (panel) panel.classList.toggle('visible', this.mapVisible);
-    if (btn) btn.classList.toggle('active', this.mapVisible);
-    if (this.mapVisible) this.loadMapPanel();
-  },
-
-  loadMapPanel() {
-    const app = this.app;
-    const frame = document.getElementById('routeMapFrame');
-    if (!frame) return;
-
-    if (!app) {
-      frame.src = 'about:blank';
-      return;
-    }
-
-    // Build waypoints array for Google Maps directions URL (no API key needed for embed)
-    const validP = app.participants.filter(p => p.name && p.lat && p.lng);
-    const origin = app.startPointCoords && app.startPointCoords.lat
-      ? `${app.startPointCoords.lat},${app.startPointCoords.lng}`
-      : (validP[0] ? `${validP[0].lat},${validP[0].lng}` : null);
-
-    const dest = app.machineStop && app.machineStop.lat
-      ? `${app.machineStop.lat},${app.machineStop.lng}`
-      : null;
-
-    if (!origin && !dest) {
-      // Show generic map of the area based on participants
-      const allPoints = validP.map(p => `${p.name}@${p.lat},${p.lng}`).join('/');
-      if (validP.length > 0) {
-        const center = validP[0];
-        frame.src = `https://maps.google.com/maps?q=${center.lat},${center.lng}&z=12&output=embed`;
-      } else {
-        // Empty state with instructions
-        frame.srcdoc = `<div style="display:flex;align-items:center;justify-content:center;height:240px;background:#1a1a28;color:rgba(240,240,248,0.4);font-family:sans-serif;font-size:14px;text-align:center;padding:20px;">📍 Добавьте координаты участникам<br>чтобы увидеть маршрут на карте</div>`;
-      }
-      return;
-    }
-
-    // Use Google Maps directions embed (no API key needed for basic embed)
-    if (origin && dest) {
-      const mid = validP.slice(1, -1).map(p => `${p.lat},${p.lng}`).join('%7C');
-      let url = `https://maps.google.com/maps/dir/${encodeURIComponent(origin)}`;
-      if (mid) url += `/${encodeURIComponent(mid)}`;
-      url += `/${encodeURIComponent(dest)}`;
-      url += `/@${dest},11z/data=!3m1!4b1?output=embed`;
-      frame.src = url;
-    } else if (dest) {
-      frame.src = `https://maps.google.com/maps?q=${dest}&z=13&output=embed`;
-    } else if (origin) {
-      frame.src = `https://maps.google.com/maps?q=${origin}&z=13&output=embed`;
-    }
-  },
-
-  // ── 4. PASSENGER LINKS ────────────────────────────────
-  togglePassengerPanel() {
-    this.passengersVisible = !this.passengersVisible;
-    const panel = document.getElementById('passengerPanel');
-    const btn = document.getElementById('btnPassengers');
-    if (panel) panel.classList.toggle('visible', this.passengersVisible);
-    if (btn) btn.classList.toggle('active', this.passengersVisible);
-    if (this.passengersVisible) this.renderPassengerLinks();
-  },
-
-  renderPassengerLinks() {
-    const app = this.app;
-    const container = document.getElementById('passengerLinks');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    if (!app) {
-      container.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);text-align:center;padding:12px;">Загрузка…</div>';
-      return;
-    }
-
-    const valid = app.participants.filter(p => p.name);
-    if (valid.length === 0) {
-      container.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);text-align:center;padding:12px;">Нет участников в маршруте</div>';
-      return;
-    }
-
-    if (!app.machineStop || !app.machineStop.arrivalTime) {
-      container.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);text-align:center;padding:12px;">⏰ Задайте время прибытия (кнопка 🕒 у Машины)</div>';
-      return;
-    }
-
-    const total = valid.reduce((s,p) => s + p.time, 0) + app.machineStop.time;
-    const startTime = (() => { const _d=new Date(), [_h,_m]=app.machineStop.arrivalTime.split(':').map(Number); _d.setHours(_h,_m,0,0); return _d; })();
-    startTime.setMinutes(startTime.getMinutes() - total);
-
-    let cur = new Date(startTime);
-
-    valid.forEach((p, i) => {
-      cur = new Date(cur.getTime() + p.time * 60000);
-      const arrivalHHMM = this.fmtTime(cur);
-      const names = [p.name, ...(p.subParticipants||[]), ...(p.treffpunktPersons||[])].filter(Boolean);
-
-      names.forEach(name => {
-        const row = document.createElement('div');
-        row.className = 'passenger-link-row';
-
-        // Build passenger URL (encodes info for passenger view)
-        const pData = btoa(JSON.stringify({
-          passenger: name,
-          driver: app.startPoint || 'Водитель',
-          arrivalTime: arrivalHHMM,
-          stopIndex: i
-        }));
-        const pUrl = `${location.origin}${location.pathname}?pv=${pData}`;
-
-        row.innerHTML = `
-          <div class="passenger-link-name">${name}</div>
-          <div class="passenger-link-time">${arrivalHHMM}</div>
-          <button class="passenger-link-copy" title="Открыть вид пассажира" onclick="RS.openPassengerView('${btoa(JSON.stringify({passenger:name,driver:app.startPoint||'Водитель',arrivalTime:arrivalHHMM}))}')">👁</button>
-          <button class="passenger-link-copy" title="Скопировать ссылку" onclick="RS.copyPassengerLink('${pUrl}', '${name}')">🔗</button>
-        `;
-        container.appendChild(row);
-      });
-    });
-
-    if (container.children.length === 0) {
-      container.innerHTML = '<div style="font-size:0.85rem;color:var(--text-3);text-align:center;padding:12px;">Нет участников с именами</div>';
-    }
-  },
-
-  copyPassengerLink(url, name) {
-    navigator.clipboard.writeText(url)
-      .then(() => this.app.showToast(`🔗 Ссылка для ${name} скопирована`))
-      .catch(() => this.app.showToast('⚠️ Не удалось скопировать'));
-  },
-
-  openPassengerView(encoded) {
-    try {
-      const data = JSON.parse(atob(encoded));
-      const modal = document.getElementById('passengerViewModal');
-      modal.classList.add('show');
-
-      document.getElementById('pvPassengerName').textContent = data.passenger;
-      document.getElementById('pvDriverName').textContent = data.driver;
-      document.getElementById('pvArrivalTime').textContent = data.arrivalTime;
-
-      this.startPassengerCountdown(data.arrivalTime);
-    } catch(e) {}
-  },
-
-  passengerCountdownTimer: null,
-
-  startPassengerCountdown(arrivalHHMM) {
-    clearInterval(this.passengerCountdownTimer);
-
-    const update = () => {
-      const now = new Date();
-      const target = new Date();
-      const [h, m] = arrivalHHMM.split(':').map(Number);
-      target.setHours(h, m, 0, 0);
-
-      const diffSec = (target - now) / 1000;
-      const countEl = document.getElementById('pvCountdown');
-      const labelEl = document.getElementById('pvArrivalLabel');
-
-      if (countEl) {
-        countEl.textContent = this.fmtCountdown(diffSec);
-        countEl.className = 'pv-countdown-big';
-        if (diffSec > 60) countEl.classList.add('on-time');
-        else if (diffSec < -60) countEl.classList.add('past');
-      }
-
-      if (labelEl) {
-        if (diffSec > 0) labelEl.innerHTML = `Водитель будет в <span id="pvArrivalTime">${arrivalHHMM}</span>`;
-        else labelEl.innerHTML = `<span id="pvArrivalTime">${arrivalHHMM}</span> — пора выходить!`;
-      }
-    };
-
-    update();
-    this.passengerCountdownTimer = setInterval(update, 1000);
-  },
-
-  notifyPassengers() {
-    // Show toast info about passenger links
-    if (this.app) {
-      setTimeout(() => {
-        this.app.showToast('📲 Откройте «Пассажиры» чтобы отправить ссылки');
-      }, 2000);
-    }
-  },
-
-  // ── 5. PUSH NOTIFICATIONS / REMINDERS ─────────────────
-  async toggleReminder() {
-    this.reminderVisible = !this.reminderVisible;
-    const panel = document.getElementById('reminderSetup');
-    const btn = document.getElementById('btnReminder');
-    if (panel) panel.classList.toggle('visible', this.reminderVisible);
-    if (btn) btn.classList.toggle('active', this.reminderVisible);
-
-    if (this.reminderVisible) {
-      await this.requestNotifPermission();
-    }
-  },
-
-  async requestNotifPermission() {
-    if (!('Notification' in window)) {
-      if (this.app) this.app.showToast('⚠️ Уведомления не поддерживаются');
-      return;
-    }
-    if (Notification.permission === 'granted') {
-      this.notifPermission = 'granted';
-      return;
-    }
-    if (Notification.permission !== 'denied') {
-      const perm = await Notification.requestPermission();
-      this.notifPermission = perm;
-    }
-    if (this.notifPermission !== 'granted') {
-      if (this.app) this.app.showToast('⚠️ Разрешите уведомления в браузере');
-    }
-  },
-
-  setReminder(minutesBefore) {
-    const app = this.app;
-    if (!app || !app.machineStop.arrivalTime) {
-      app.showToast('⚠️ Задайте время прибытия'); return;
-    }
-
-    const [h, m] = app.machineStop.arrivalTime.split(':').map(Number);
-    const arrival = new Date();
-    arrival.setHours(h, m, 0, 0);
-
-    // Departure time = arrival - total travel
-    const valid = app.participants.filter(p => p.name);
-    const total = valid.reduce((s,p) => s + p.time, 0) + app.machineStop.time;
-    const departure = new Date(arrival.getTime() - total * 60000);
-    const reminderAt = new Date(departure.getTime() - minutesBefore * 60000);
-    const msUntil = reminderAt - Date.now();
-
-    if (msUntil < 0) {
-      app.showToast('⚠️ Время уже прошло');
-      return;
-    }
-
-    // Mark chip active
-    document.querySelectorAll('.reminder-chip').forEach(c => {
-      c.classList.toggle('active', parseInt(c.dataset.min) === minutesBefore);
-    });
-
-    // Clear existing
-    this.reminderTimers.forEach(t => clearTimeout(t));
-    this.reminderTimers = [];
-
-    const msg = `🚗 Пора выезжать! Отправление в ${departure.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`;
-
-    // Show in-app notification banner
-    const bannerTimer = setTimeout(() => {
-      const panel = document.getElementById('notifPanel');
-      const text = document.getElementById('notifText');
-      if (panel && text) {
-        text.textContent = msg;
-        panel.classList.add('visible');
-        // Auto-hide after 30s
-        setTimeout(() => panel.classList.remove('visible'), 30000);
-      }
-    }, msUntil);
-
-    // Also try push notification
-    const pushTimer = setTimeout(() => {
-      if (this.notifPermission === 'granted') {
-        try {
-          new Notification('RouteSync', {
-            body: msg,
-            icon: '/icons/icon-192.png',
-            badge: '/icons/icon-192.png',
-            vibrate: [200, 100, 200]
-          });
-        } catch(e) {}
-      }
-    }, msUntil);
-
-    this.reminderTimers.push(bannerTimer, pushTimer);
-
-    const minStr = minutesBefore >= 60 ? `${minutesBefore/60} час` : `${minutesBefore} мин`;
-    app.showToast(`🔔 Напомним за ${minStr} до отправления`);
-  },
-
-  // ── INIT ──────────────────────────────────────────────
-  init() {
-    // Live start button
-    const liveBtn = document.getElementById('btnLiveStart');
-    if (liveBtn) liveBtn.addEventListener('click', () => {
-      if (this.liveActive) this.endLive();
-      else this.initLive();
-    });
-
-    // Live pause
-    const pauseBtn = document.getElementById('livePauseBtn');
-    if (pauseBtn) pauseBtn.addEventListener('click', () => this.pauseLive());
-
-    // Live stop
-    const stopBtn = document.getElementById('liveStopBtn');
-    if (stopBtn) stopBtn.addEventListener('click', () => this.endLive());
-
-    // Timeline
-    const tlBtn = document.getElementById('btnTimeline');
-    if (tlBtn) tlBtn.addEventListener('click', () => this.toggleTimeline());
-
-    const tlClose = document.getElementById('btnTimelineClose');
-    if (tlClose) tlClose.addEventListener('click', () => { this.timelineVisible = true; this.toggleTimeline(); });
-
-    // Map panel
-    const mapBtn = document.getElementById('btnMapPanel');
-    if (mapBtn) mapBtn.addEventListener('click', () => this.toggleMapPanel());
-
-    const mapClose = document.getElementById('mapPanelClose');
-    if (mapClose) mapClose.addEventListener('click', () => { this.mapVisible = true; this.toggleMapPanel(); });
-
-    // Passengers
-    const passBtn = document.getElementById('btnPassengers');
-    if (passBtn) passBtn.addEventListener('click', () => this.togglePassengerPanel());
-
-    // Reminder
-    const remBtn = document.getElementById('btnReminder');
-    if (remBtn) remBtn.addEventListener('click', () => this.toggleReminder());
-
-    // Reminder chips
-    document.querySelectorAll('.reminder-chip').forEach(chip => {
-      chip.addEventListener('click', () => this.setReminder(parseInt(chip.dataset.min)));
-    });
-
-    // Notif dismiss
-    const notifDismiss = document.getElementById('notifDismiss');
-    if (notifDismiss) notifDismiss.addEventListener('click', () => {
-      document.getElementById('notifPanel').classList.remove('visible');
-    });
-
-    // Passenger view close
-    const pvClose = document.getElementById('pvClose');
-    if (pvClose) pvClose.addEventListener('click', () => {
-      document.getElementById('passengerViewModal').classList.remove('show');
-      clearInterval(this.passengerCountdownTimer);
-    });
-
-    // Check URL for passenger view param
-    const urlParams = new URLSearchParams(location.search);
-    const pvParam = urlParams.get('pv');
-    if (pvParam) {
-      try {
-        const data = JSON.parse(atob(pvParam));
-        setTimeout(() => this.openPassengerView(btoa(JSON.stringify(data))), 500);
-      } catch(e) {}
-    }
-
-    console.log('RS features ready');
   }
 };
 
-// Init: подождать пока DOM и app готовы, потом инициализировать
-function _initRS() {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(_initRS, 200));
-    return;
+// Passenger view close
+document.addEventListener('DOMContentLoaded', function() {
+  var pvClose = document.getElementById('pvClose');
+  if (pvClose) pvClose.addEventListener('click', function() {
+    var modal = document.getElementById('passengerViewModal');
+    if (modal) modal.classList.remove('show');
+    clearInterval(RS.passengerCountdownTimer);
+  });
+
+  var notifDismiss = document.getElementById('notifDismiss');
+  if (notifDismiss) notifDismiss.addEventListener('click', function() {
+    var panel = document.getElementById('notifPanel');
+    if (panel) panel.classList.remove('visible');
+  });
+
+  // Check URL passenger view param
+  var pvParam = new URLSearchParams(location.search).get('pv');
+  if (pvParam) {
+    setTimeout(function() { RS.openPassengerView(pvParam); }, 600);
   }
-  if (!window._appInstance) {
-    setTimeout(_initRS, 100);
-    return;
-  }
-  RS.init();
-  // Hook into app's calculate for live updates
-  const app = window._appInstance;
-  const origCalc = app.calculate.bind(app);
-  app.calculate = function() {
-    origCalc();
-    if (RS.timelineVisible) RS.renderTimeline();
-    if (RS.passengersVisible) RS.renderPassengerLinks();
-  };
-}
-_initRS();
+});
 </script>
+
 </body>
 </html>
