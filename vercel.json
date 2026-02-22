@@ -1,9 +1,5 @@
 {
-  "routes": [
-    { "src": "/api/calculate-time", "dest": "/api/calculate-time.js" },
-    { "src": "/api/parse-coords",   "dest": "/api/parse-coords.js"   },
-    { "src": "/api/maps-key",       "dest": "/api/maps-key.js"       },
-    { "src": "/redaktor",           "dest": "/redaktor.html"         },
-    { "src": "/(.*)",               "dest": "/$1"                    }
+  "rewrites": [
+    { "source": "/redaktor", "destination": "/redaktor.html" }
   ]
 }

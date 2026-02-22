@@ -3891,7 +3891,6 @@ console.log('RouteSync ready');
 //  Простая, надёжная реализация без сложных init-цепочек
 // ═══════════════════════════════════════════════════════
 
-console.log('[RS] defining RS object...');
 var RS = {
   timelineVisible: false,
   mapVisible: false,
@@ -3940,7 +3939,6 @@ var RS = {
 
   // ── 1. TIMELINE ──────────────────────────────────────
   toggleTimeline: function() {
-    console.log('[RS] toggleTimeline called, timelineVisible was:', this.timelineVisible);
     this.timelineVisible = !this.timelineVisible;
     var view = document.getElementById('timelineView');
     var btn = document.getElementById('btnTimeline');
@@ -4010,7 +4008,6 @@ var RS = {
 
   // ── 2. MAP ───────────────────────────────────────────
   toggleMapPanel: function() {
-    console.log('[RS] toggleMapPanel called, mapVisible was:', this.mapVisible);
     this.mapVisible = !this.mapVisible;
     var panel = document.getElementById('mapPanel');
     var btn = document.getElementById('btnMapPanel');
@@ -4062,7 +4059,6 @@ var RS = {
 
   // ── 3. PASSENGERS ────────────────────────────────────
   togglePassengerPanel: function() {
-    console.log('[RS] togglePassengerPanel called, passengersVisible was:', this.passengersVisible);
     this.passengersVisible = !this.passengersVisible;
     var panel = document.getElementById('passengerPanel');
     var btn = document.getElementById('btnPassengers');
@@ -4170,7 +4166,6 @@ var RS = {
 
   // ── 4. REMINDER ──────────────────────────────────────
   toggleReminder: function() {
-    console.log('[RS] toggleReminder called, reminderVisible was:', this.reminderVisible);
     var self = this;
     this.reminderVisible = !this.reminderVisible;
     var panel = document.getElementById('reminderSetup');
@@ -4253,7 +4248,6 @@ var RS = {
 
   // ── 5. LIVE ──────────────────────────────────────────
   initLive: function() {
-    console.log('[RS] initLive called, liveActive:', this.liveActive, 'app:', !!this.app());
     var app = this.app();
     if (!app) { this.toast('Приложение не готово'); return; }
     if (!app.machineStop || !app.machineStop.arrivalTime) {
@@ -4358,7 +4352,6 @@ var RS = {
   }
 };
 
-console.log('[RS] RS object defined, type:', typeof RS, 'toggleTimeline:', typeof RS.toggleTimeline);
 // Passenger view close
 document.addEventListener('DOMContentLoaded', function() {
   var pvClose = document.getElementById('pvClose');
