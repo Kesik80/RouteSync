@@ -1901,13 +1901,13 @@ body.light .passenger-link-row { background: rgba(0,0,0,0.04); }
     <div class="live-next" id="liveNextBlock">
       <div class="live-next-label">Следующая остановка</div>
       <div class="live-next-name" id="liveNextName">—</div>
-      <div class="live-countdown" id="liveCountdown">—</div>
+      <div class="live-countdown" id="liveNextCountdown">—</div>
       <div class="live-status-text" id="liveStatusText"></div>
     </div>
     <div class="live-stops" id="liveStopsList"></div>
     <div class="live-btn-row">
-      <button class="btn btn-ghost" id="livePauseBtn" style="flex:1;height:38px;font-size:0.85rem;">⏸ Пауза</button>
-      <button class="btn btn-danger" id="liveStopBtn" style="flex:1;height:38px;font-size:0.85rem;">■ Завершить</button>
+      <button class="btn btn-ghost" id="livePauseBtn" onclick="RS.pauseLive()" style="flex:1;height:38px;font-size:0.85rem;">⏸ Пауза</button>
+      <button class="btn btn-danger" id="liveStopBtn" onclick="RS.endLive()" style="flex:1;height:38px;font-size:0.85rem;">■ Завершить</button>
     </div>
   </div>
 
@@ -4250,19 +4250,20 @@ var RS = {
   initLive: function() {
     var app = this.app();
     if (!app) { this.toast('Приложение не готово'); return; }
-    if (!app.machineStop || !app.machineStop.arrivalTime) {
-      this.toast('⚠️ Задайте время прибытия');
-      return;
-    }
 
     var valid = (app.participants || []).filter(function(p) { return p.name; });
-    if (!valid.length) { this.toast('⚠️ Нет участников'); return; }
+    if (!valid.length) { this.toast('⚠️ Нет участников в маршруте'); return; }
 
-    var arrivalStr = app.machineStop.arrivalTime;
-    var total = valid.reduce(function(s, p) { return s + (p.time || 0); }, 0) + (app.machineStop.time || 0);
+    var total = valid.reduce(function(s, p) { return s + (p.time || 0); }, 0) + ((app.machineStop && app.machineStop.time) || 0);
+
     var arrival = new Date();
-    var p = arrivalStr.split(':');
-    arrival.setHours(parseInt(p[0]), parseInt(p[1]), 0, 0);
+    if (app.machineStop && app.machineStop.arrivalTime) {
+      var pp = app.machineStop.arrivalTime.split(':');
+      arrival.setHours(parseInt(pp[0]), parseInt(pp[1]), 0, 0);
+      if (arrival < new Date()) arrival.setDate(arrival.getDate() + 1);
+    } else {
+      arrival = new Date(Date.now() + total * 60000);
+    }
     var startTime = new Date(arrival.getTime() - total * 60000);
 
     this.liveStops = [];
@@ -4288,6 +4289,22 @@ var RS = {
 
     var self = this;
     this.liveTimer = setInterval(function() { self.updateLiveCountdown(); }, 1000);
+  },
+
+  pauseLive: function() {
+    if (this.liveTimer) {
+      clearInterval(this.liveTimer);
+      this.liveTimer = null;
+      this.toast('⏸ Пауза');
+      var btn = document.getElementById('livePauseBtn');
+      if (btn) btn.textContent = '▶ Продолжить';
+    } else {
+      var self = this;
+      this.liveTimer = setInterval(function() { self.updateLiveCountdown(); }, 1000);
+      this.toast('▶ Продолжаем');
+      var btn = document.getElementById('livePauseBtn');
+      if (btn) btn.textContent = '⏸ Пауза';
+    }
   },
 
   endLive: function() {
